@@ -46,5 +46,122 @@ model User {
   accounts      Account[]
   sessions      Session[]
   
+  memberships         Member[]
 }
 
+
+
+model Epic {
+  id           String     @id @default(cuid())
+  name         String     
+  color        String     @default("bg-purple-500") 
+  description  String?    @db.Text 
+  taskyspaceId String
+  taskyspace   Taskyspace @relation(fields: [taskyspaceId], references: [id], onDelete: Cascade)
+
+  tasks        Task[]
+
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Taskyspace {
+  id          String    @id @default(cuid())
+  name        String
+  privacy     String    
+  password    String?   
+  
+  ownerId     String
+  owner       User      @relation("SpaceOwner", fields: [ownerId], references: [id])
+
+  members     Member[]
+  invitations Invitation[] 
+  columns     Column[]      
+  activities  ActivityType[]
+  tasks       Task[]
+  sprints     Sprint[]   
+  epics       Epic[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Member {
+  id           String     @id @default(cuid())
+  role         String     // "Administrador", "Miembro", "Solo Visor"
+  
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  taskyspaceId String
+  taskyspace   Taskyspace @relation(fields: [taskyspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, taskyspaceId])
+}
+
+model Column {
+  id           String     @id @default(cuid())
+  title        String     
+  color        String?    @default("#10b981")
+  order        Int        @default(0)
+  
+  taskyspaceId String
+  taskyspace   Taskyspace @relation(fields: [taskyspaceId], references: [id], onDelete: Cascade)
+  
+  tasks        Task[]
+}
+
+
+
+model Task {
+  id                 String        @id @default(cuid()) 
+  title              String
+  description        String?       @db.Text 
+  order              Int           @default(0) 
+  isCompleted        Boolean       @default(false)
+  
+  
+  type               String?       @default("Task") 
+  priority           String?       @default("Media") 
+  effortHours        Float?        @default(0)       
+  dueDate            DateTime?     
+  isBlocked          Boolean       @default(false)   
+  dependencies       String?                         
+  acceptanceCriteria String?       @db.Text          
+  prLink             String?                         
+  notes              String?       @db.Text          
+  closedAt           DateTime?                       
+  
+
+  parentId           String?
+  parent             Task?      @relation("TaskToSubtasks", fields: [parentId], references: [id], onDelete: Cascade)
+  subTasks           Task[]     @relation("TaskToSubtasks")
+
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+ 
+  sprintId           String?
+  sprint             Sprint?       @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+
+  epicId      String?
+  epic        Epic?      @relation(fields: [epicId], references: [id], onDelete: SetNull)
+
+  taskyspaceId       String
+  taskyspace         Taskyspace    @relation(fields: [taskyspaceId], references: [id], onDelete: Cascade)
+
+  columnId           String        
+  column             Column        @relation(fields: [columnId], references: [id], onDelete: Cascade)
+
+  activityTypeId     String?
+  activityType       ActivityType? @relation(fields: [activityTypeId], references: [id])
+
+  assigneeId         String?       
+  assignee           User?         @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  supportId          String?
+  support            User?         @relation("TaskSupport", fields: [supportId], references: [id], onDelete: SetNull)
+
+  authorId           String?
+  author             User?         @relation("TaskAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+}
