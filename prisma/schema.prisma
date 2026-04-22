@@ -165,3 +165,21 @@ model Task {
   authorId           String?
   author             User?         @relation("TaskAuthor", fields: [authorId], references: [id], onDelete: SetNull)
 }
+
+model Sprint {
+  id           String     @id @default(cuid())
+  name         String     
+  goal         String?    @db.Text 
+  startDate    DateTime?
+  endDate      DateTime?
+  status       String     @default("PLANNED") 
+  
+  taskyspaceId String
+  taskyspace   Taskyspace @relation(fields: [taskyspaceId], references: [id], onDelete: Cascade)
+
+  tasks        Task[]
+ 
+
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
