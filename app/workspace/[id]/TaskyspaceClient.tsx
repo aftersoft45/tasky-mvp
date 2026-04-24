@@ -10,7 +10,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 import TaskModal from '../../components/TaskModal';
 import TaskListView from '../../components/TaskListView';
-import EpicModal from '../../components/EpicModal'; 
+//import EpicModal from '../../components/EpicModal'; 
 
 const getRoleBadgeStyle = (roleName: string) => {
   switch(roleName) {

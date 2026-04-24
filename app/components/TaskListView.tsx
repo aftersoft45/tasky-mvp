@@ -4,7 +4,6 @@
 import React, { useState } from 'react';
 import { Search, ArrowUpDown, Clock, Calendar } from 'lucide-react';
 
-// determinamos el color segun el tipo de actividad
 const getTypeColor = (type: string) => {
   switch(type) {
       case 'Bug': return 'bg-red-500/20 text-red-400 border-red-500/30';
@@ -16,12 +15,7 @@ const getTypeColor = (type: string) => {
   }
 };
 
-// visata de lista de tareas en formato de tabla
-export default function TaskListView({ tasks, 
-    columns, 
-    sprints, 
-    epics, 
-    onTaskClick }: any) {
+export default function TaskListView({ tasks, columns, sprints, epics, onTaskClick }: any) {
   const [searchTerm, setSearchTerm] = useState('');
 
   // Formateador de fechas
@@ -30,16 +24,16 @@ export default function TaskListView({ tasks,
     return new Date(dateString).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
-  // filtro de las tareas
+  // Filtrado básico por búsqueda
   const filteredTasks = tasks.filter((task: any) => 
     task.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  
-// renderizado de la tabla
+
   return (
     <div className="flex-1 overflow-y-auto p-6 md:p-8 relative z-10 custom-scrollbar bg-[#1d2125] animate-in fade-in duration-300">
       <div className="max-w-7xl mx-auto space-y-6">
         
+        {/* ENCABEZADO DE LA LISTA */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold text-white">Lista de Actividades</h2>
@@ -58,7 +52,7 @@ export default function TaskListView({ tasks,
           </div>
         </div>
 
-        <<!-- tabla para las tareas -->
+        {/* AQUI SE PRESENTA NUESTRA TABLA */}
         <div className="bg-[#161a1d] border border-[#30363d] rounded-xl overflow-hidden shadow-lg">
           <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left border-collapse min-w-[1000px]">
@@ -92,7 +86,7 @@ export default function TaskListView({ tasks,
                         onClick={() => onTaskClick(task)}
                         className="hover:bg-[#2c333b]/50 cursor-pointer transition-colors group"
                       >
-                        <!-- tipos de actividades -->
+                        {/* 1. Actividad y Tipo */}
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <span className={`text-[10px] px-2 py-0.5 rounded border font-bold uppercase tracking-wider shrink-0 ${getTypeColor(task.type)}`}>
@@ -109,7 +103,7 @@ export default function TaskListView({ tasks,
                           </div>
                         </td>
 
-                        <! -- asignacion -->
+                        {/* 2. Asignado */}
                         <td className="px-4 py-3">
                           {task.assignee ? (
                             <div className="flex items-center gap-2">
@@ -130,7 +124,7 @@ export default function TaskListView({ tasks,
                           )}
                         </td>
 
-                       <!-- estado de la actividad-->
+                        {/* 3. Estado */}
                         <td className="px-4 py-3">
                           <span className={`text-xs px-2.5 py-1 rounded-md font-bold uppercase tracking-wider ${
                             col?.title.toUpperCase() === 'LISTO' || col?.title.toUpperCase() === 'DONE' 
@@ -141,7 +135,7 @@ export default function TaskListView({ tasks,
                           </span>
                         </td>
 
-                        <!--prioridad de la actividad--
+                        {/* 4. Prioridad */}
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1.5">
                             <span className={`w-2 h-2 rounded-full shrink-0 ${
@@ -152,16 +146,17 @@ export default function TaskListView({ tasks,
                           </div>
                         </td>
 
-                        <!-- sprint al que pertenece -->
+                        {/* 5. Sprint */}
                         <td className="px-4 py-3 text-sm text-gray-400">
                           {sprint ? sprint.name : 'Backlog'}
                         </td>
 
+                        {/* 6. Actualizada */}
                         <td className="px-4 py-3 text-sm text-gray-400 flex items-center gap-1.5">
                           <Clock size={14} className="opacity-50" /> {formatDate(task.updatedAt)}
                         </td>
 
-                        <!--fecha limite de entrega-->
+                        {/* 7. Vencimiento */}
                         <td className="px-4 py-3">
                           <span className={`text-sm flex items-center gap-1.5 ${task.dueDate ? 'text-gray-300' : 'text-gray-600'}`}>
                             <Calendar size={14} className="opacity-50" /> {formatDate(task.dueDate)}
