@@ -7,8 +7,41 @@ datasource db {
 }
 
 
+// Sprints (Iteraciones de trabajo)    //Luis 21
+model Sprint {
+  id           String     @id @default(cuid())
+  name         String     
+  goal         String?    @db.Text 
+  startDate    DateTime?
+  endDate      DateTime?
+  status       String     @default("PLANNED") 
+  
+  taskyspaceId String
+  taskyspace   Taskyspace @relation(fields: [taskyspaceId], references: [id], onDelete: Cascade)
 
-// tablas para NEXTAUTH
+  tasks        Task[]
+ 
+
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+// Épicas (Grandes iniciativas que agrupan tareas)     //Luis 21
+model Epic {
+  id           String     @id @default(cuid())
+  name         String     
+  color        String     @default("bg-purple-500") 
+  description  String?    @db.Text 
+  taskyspaceId String
+  taskyspace   Taskyspace @relation(fields: [taskyspaceId], references: [id], onDelete: Cascade)
+
+  tasks        Task[]
+
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+// TABLAS DE NEXTAUTH 
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -35,7 +68,7 @@ model Session {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// TABLAS para el modelo Usuario
+// MODELO DE USUARIO 
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -46,24 +79,22 @@ model User {
   accounts      Account[]
   sessions      Session[]
   
+  // Relaciones para Tasky
+  ownedSpaces         Taskyspace[] @relation("SpaceOwner")
   memberships         Member[]
+  sentInvitations     Invitation[] @relation("SentInvitations") 
+  receivedInvitations Invitation[] @relation("ReceivedInvitations") 
+  
+  // Tareas relacionadas
+  assignedTasks       Task[]       @relation("TaskAssignee") 
+  tasksSupported      Task[]       @relation("TaskSupport")  
+  tasksAuthored       Task[]       @relation("TaskAuthor")   
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
-
-
-model Epic {
-  id           String     @id @default(cuid())
-  name         String     
-  color        String     @default("bg-purple-500") 
-  description  String?    @db.Text 
-  taskyspaceId String
-  taskyspace   Taskyspace @relation(fields: [taskyspaceId], references: [id], onDelete: Cascade)
-
-  tasks        Task[]
-
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-}
+// MODELOS DE TASKY        //luis 21
 
 model Taskyspace {
   id          String    @id @default(cuid())
@@ -86,9 +117,10 @@ model Taskyspace {
   updatedAt   DateTime  @updatedAt
 }
 
+// Miembros de un equipo     //Luis 21
 model Member {
   id           String     @id @default(cuid())
-  role         String     // "Administrador", "Miembro", "Solo Visor"
+  role         String     
   
   userId       String
   user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -99,6 +131,7 @@ model Member {
   @@unique([userId, taskyspaceId])
 }
 
+// Columnas del Kanban      //Luis 21
 model Column {
   id           String     @id @default(cuid())
   title        String     
@@ -111,8 +144,18 @@ model Column {
   tasks        Task[]
 }
 
+// Tipos de actividades (Ej: Tarea, Historia, Error)      //Luis 21
+model ActivityType {
+  id           String     @id @default(cuid())
+  name         String
+  
+  taskyspaceId String
+  taskyspace   Taskyspace @relation(fields: [taskyspaceId], references: [id], onDelete: Cascade)
+  
+  tasks        Task[]
+}
 
-
+// Tareas individuales (Las tarjetas)       //Luis 21
 model Task {
   id                 String        @id @default(cuid()) 
   title              String
@@ -120,7 +163,7 @@ model Task {
   order              Int           @default(0) 
   isCompleted        Boolean       @default(false)
   
-  
+//NUEVOS CAMPOS DEL EXCEL (BACKLOG SPRINT) 
   type               String?       @default("Task") 
   priority           String?       @default("Media") 
   effortHours        Float?        @default(0)       
@@ -132,7 +175,7 @@ model Task {
   notes              String?       @db.Text          
   closedAt           DateTime?                       
   
-
+  //RELACIÓN DE SUB-TAREAS 
   parentId           String?
   parent             Task?      @relation("TaskToSubtasks", fields: [parentId], references: [id], onDelete: Cascade)
   subTasks           Task[]     @relation("TaskToSubtasks")
@@ -140,7 +183,7 @@ model Task {
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
- 
+  // RELACIONES 
   sprintId           String?
   sprint             Sprint?       @relation(fields: [sprintId], references: [id], onDelete: SetNull)
 
@@ -166,20 +209,20 @@ model Task {
   author             User?         @relation("TaskAuthor", fields: [authorId], references: [id], onDelete: SetNull)
 }
 
-model Sprint {
-  id           String     @id @default(cuid())
-  name         String     
-  goal         String?    @db.Text 
-  startDate    DateTime?
-  endDate      DateTime?
-  status       String     @default("PLANNED") 
+// SISTEMA DE INVITACIONES
+model Invitation {
+  id             String     @id @default(cuid())
+  role           String     
+  status         String     @default("PENDIENTE") 
   
-  taskyspaceId String
-  taskyspace   Taskyspace @relation(fields: [taskyspaceId], references: [id], onDelete: Cascade)
-
-  tasks        Task[]
- 
-
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  taskyspaceId   String
+  taskyspace     Taskyspace @relation(fields: [taskyspaceId], references: [id], onDelete: Cascade)
+  
+  inviterId      String
+  inviter        User       @relation("SentInvitations", fields: [inviterId], references: [id])
+  
+  invitedUserId  String
+  invitedUser    User       @relation("ReceivedInvitations", fields: [invitedUserId], references: [id])
+  
+  createdAt      DateTime   @default(now())
 }
