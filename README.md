@@ -1,38 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Tasky es una plataforma de gestión de proyectos diseñada para optimizar tu flujo de trabajo. Esta guía te ayudará a configurar el entorno de desarrollo y levantar la aplicación rápidamente utilizando Docker.
 
-## Getting Started
+##  Requisitos Previos
 
-First, run the development server:
+Antes de comenzar, asegúrate de tener instalado lo siguiente en tu sistema:
+* [Node.js y npm](https://nodejs.org/)
+* [Docker](https://www.docker.com/) y Docker Compose
+
+
+---
+
+##  Pasos para la Instalación
+
+### Paso 1: Instalar dependencias locales
+Primero, necesitamos instalar las dependencias del proyecto. Esto también se encargará de instalar las herramientas de Prisma necesarias para leer tu base de datos.
+Abre tu terminal en la raíz del proyecto y ejecuta:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+npm install
+Paso 2: Configurar las Variables de Entorno
+La aplicación requiere ciertas variables de entorno para conectarse a la base de datos y manejar las sesiones de usuario.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Busca el archivo .env.example en la raíz del proyecto.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Renómbralo a .env
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Ábrelo y asigna los valores correspondientes a las credenciales: solicitarlas a Diego Esparza Tech Lead   por correo: motokrat0z@gmail.com
 
-## Learn More
+Fragmento de código
+# URL de conexión a tu base de datos PostgreSQL
+DATABASE_URL="tu_cadena_de_conexion_aqui"
 
-To learn more about Next.js, take a look at the following resources:
+# URL base de tu aplicación (para desarrollo local)
+NEXTAUTH_URL="http://localhost:3000"
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Credenciales de Google para el inicio de sesión
+GOOGLE_CLIENT_ID="tu_google_client_id_aqui"
+GOOGLE_CLIENT_SECRET="tu_google_client_secret_aqui"
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Paso 3: Montar la aplicación en Docker
+Una vez que el archivo .env esté configurado correctamente con tus credenciales, procede a construir y levantar los contenedores de Docker. Ejecuta el siguiente comando:
 
-## Deploy on Vercel
+Bash
+docker compose up --build
+Nota: El parámetro --build asegura que Docker reconstruya la imagen con los últimos cambios en tu código y tu esquema de base de datos.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+ Navegación en la Aplicación
+Una vez que la terminal indique que los contenedores están en ejecución y el servidor está listo, puedes comenzar a usar la aplicación:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Abre tu navegador web.
 
-## Prueba de pull request 
+Dirígete a http://localhost:3000.
+
+Al ingresar, serás recibido por la pantalla de inicio o el login. Podrás iniciar sesión utilizando tu cuenta de Google configurada en el Paso 2.
+
+¡Listo! Ya puedes comenzar a crear tus espacios de trabajo, organizar tareas y gestionar tus proyectos dentro de Tasky.
