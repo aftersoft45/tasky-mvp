@@ -24,7 +24,7 @@ export default function TaskListView({ tasks, columns, sprints, epics, onTaskCli
     return new Date(dateString).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
-  // Filtrado básico por búsqueda
+  // Filtrado para buscar actividades
   const filteredTasks = tasks.filter((task: any) => 
     task.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -52,7 +52,7 @@ export default function TaskListView({ tasks, columns, sprints, epics, onTaskCli
           </div>
         </div>
 
-        {/* AQUI SE PRESENTA NUESTRA TABLA */}
+        {/* TABLA ESTILO JIRA */}
         <div className="bg-[#161a1d] border border-[#30363d] rounded-xl overflow-hidden shadow-lg">
           <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left border-collapse min-w-[1000px]">
