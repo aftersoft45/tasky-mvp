@@ -152,14 +152,14 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   };
 
   const handleToggleSubtaskStatus = async (subtaskId: string, isCurrentlyDone: boolean) => {
-    // 🔥 VALIDACIÓN MAESTRA DE SEGURIDAD PARA SUB-TAREAS 🔥
+    //  VALIDACIÓN de seguridad para sub tareas 
     const st = allTasks.find((t:any) => t.id === subtaskId);
     if (st && !isAdmin) {
       if (!st.assigneeId) {
-        return alert("⚠️ Acción bloqueada: Debes asignarte esta sub-tarea antes de poder completarla.");
+        return alert(" Acción bloqueada: Debes asignarte esta sub-tarea antes de poder completarla.");
       }
       if (st.assigneeId !== currentUser.id) {
-        return alert("❌ Permiso denegado: Esta sub-tarea está asignada a otro miembro del equipo.");
+        return alert(" Permiso denegado: Esta sub-tarea está asignada a otro miembro del equipo.");
       }
     }
 
@@ -193,14 +193,14 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   };
 
   const handleCreateSprint = async () => {
-    if (!canManageSprints) return alert("❌ Solo el Project Manager o Administrador pueden crear Sprints.");
+    if (!canManageSprints) return alert(" Solo el Project Manager o Administrador pueden crear Sprints.");
     const name = `Sprint ${sprints.length + 1}`;
     const res = await fetch('/api/sprints', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, taskyspaceId: space.id }) });
     if (res.ok) { const newSprint = await res.json(); setSprints([...sprints, newSprint]); router.refresh(); }
   };
 
   const handleCreateEpic = async () => {
-    if (!canManageBacklog) return alert("❌ Solo PO, PM o Admin pueden crear Épicas.");
+    if (!canManageBacklog) return alert(" Solo PO, PM o Admin pueden crear Épicas.");
     const name = prompt("Escribe el nombre de la nueva Épica (Ej: Sistema de Pagos):");
     if (!name || name.trim() === "") return;
     const res = await fetch('/api/epics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, taskyspaceId: space.id }) });
@@ -216,7 +216,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
 
   const handleDeleteEpic = async (epicId: string) => {
     if (!isAdmin) return alert("Solo el Administrador puede borrar Épicas.");
-    if (!confirm("⚠️ ¿Eliminar esta Épica? Las tareas asociadas perderán esta etiqueta, pero NO se borrarán.")) return;
+    if (!confirm(" ¿Eliminar esta Épica? Las tareas asociadas perderán esta etiqueta, pero NO se borrarán.")) return;
     setEpics(epics.filter((e:any) => e.id !== epicId));
     setColumns((prev: any) => prev.map((col: any) => ({ ...col, tasks: col.tasks.map((t: any) => t.epicId === epicId ? { ...t, epicId: null } : t) })));
     await fetch(`/api/epics?epicId=${epicId}`, { method: 'DELETE' });
@@ -224,18 +224,18 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   };
 
   const handleStartSprint = async (sprintId: string) => {
-    if (!canManageSprints) return alert("❌ Solo el Project Manager o Administrador pueden iniciar Sprints.");
-    if (activeSprint) return alert("❌ Error: Ya hay un Sprint activo. Debes completarlo antes de iniciar otro.");
+    if (!canManageSprints) return alert(" Solo el Project Manager o Administrador pueden iniciar Sprints.");
+    if (activeSprint) return alert(" Error: Ya hay un Sprint activo. Debes completarlo antes de iniciar otro.");
     const startDate = new Date(); const endDate = new Date(); endDate.setDate(startDate.getDate() + 14);
     const res = await fetch('/api/sprints', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sprintId, status: 'ACTIVE', startDate, endDate }) });
     if (res.ok) { setSprints(sprints.map((s: any) => s.id === sprintId ? { ...s, status: 'ACTIVE', startDate, endDate } : s)); setSelectedSprintId(sprintId); setActiveView('tablero'); router.refresh(); }
   };
 
   const handleCompleteSprint = async (sprintId: string) => {
-    if (!canManageSprints) return alert("🛡️ Acceso denegado: Solo el Project Manager o Administrador pueden dar por completado un Sprint.");
+    if (!canManageSprints) return alert(" Acceso denegado: Solo el Project Manager o Administrador pueden dar por completado un Sprint.");
     const sprintTasks = allTasks.filter((t: any) => t.sprintId === sprintId);
     const incompleteTasks = sprintTasks.filter((t: any) => t.columnId !== doneColumn?.id);
-    if (incompleteTasks.length > 0) return alert(`❌ No puedes completar este Sprint. Aún hay ${incompleteTasks.length} tarea(s) fuera de la columna '${doneColumn?.title || 'Listo'}'.`);
+    if (incompleteTasks.length > 0) return alert(` No puedes completar este Sprint. Aún hay ${incompleteTasks.length} tarea(s) fuera de la columna '${doneColumn?.title || 'Listo'}'.`);
     if (!confirm("¿Seguro que quieres dar por completado este sprint?")) return;
     const res = await fetch('/api/sprints', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sprintId, status: 'COMPLETED' }) });
     if (res.ok) { setSprints(sprints.map((s: any) => s.id === sprintId ? { ...s, status: 'COMPLETED' } : s)); setSelectedSprintId(sprintId); setActiveView('tablero'); router.refresh(); }
@@ -243,7 +243,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
 
   const handleDeleteSprint = async (sprintId: string) => {
     if (!canManageSprints) return alert("Solo PM o Admin pueden borrar sprints.");
-    if (!confirm("⚠️ ¿Eliminar este Sprint? Las tareas regresarán al Backlog.")) return;
+    if (!confirm(" ¿Eliminar este Sprint? Las tareas regresarán al Backlog.")) return;
     setSprints(sprints.filter((s:any) => s.id !== sprintId));
     setColumns((prev: any) => prev.map((col: any) => ({ ...col, tasks: col.tasks.map((t: any) => t.sprintId === sprintId ? { ...t, sprintId: null } : t) })));
     await fetch(`/api/sprints?sprintId=${sprintId}`, { method: 'DELETE' }); router.refresh();
@@ -256,7 +256,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
 
     if (source.droppableId !== destination.droppableId && destination.droppableId === doneColumn?.id) {
       if (!canApproveDone) {
-        alert("❌ Movimiento bloqueado: Solo el Tech Lead (o Admin) puede validar y pasar tickets a la columna 'Listo'.");
+        alert(" Movimiento bloqueado: Solo el Tech Lead (o Admin) puede validar y pasar tickets a la columna 'Listo'.");
         return;
       }
     }
@@ -280,7 +280,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
         });
 
         if (hasIncomplete) {
-          alert("❌ Acción bloqueada: No puedes mover esta tarea a 'Listo' porque aún tiene sub-tareas pendientes por completar.");
+          alert(" Acción bloqueada: No puedes mover esta tarea a 'Listo' porque aún tiene sub-tareas pendientes por completar.");
           return; 
         }
         movedTask.closedAt = new Date().toISOString(); 
@@ -404,16 +404,16 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     const targetTask = allTasks.find((t:any) => t.id === taskId);
     const isSubtask = !!targetTask?.parentId;
 
-    // 🔥 FILTRO DE SEGURIDAD PARA ASIGNACIONES 🔥
+    //  FILTRO DE SEGURIDAD PARA ASIGNACIONES 
     if (!isAdmin && !isPM) {
       if (isSubtask) {
-        // En sub-tareas, dejamos que el TechLead asigne a quien sea.
-        // Si es un Developer normal, solo puede auto-asignárselo.
+        
+        
         if (!isTechLead && assigneeId !== currentUser.id && assigneeId !== "") {
-           return alert("❌ Solo puedes asignarte la sub-tarea a ti mismo. Deja que el Tech Lead asigne a otros.");
+           return alert(" Solo puedes asignarte la sub-tarea a ti mismo. Deja que el Tech Lead asigne a otros.");
         }
       } else {
-        return alert("❌ Permiso denegado: Solo el Project Manager puede reasignar los tickets principales.");
+        return alert(" Permiso denegado: Solo el Project Manager puede reasignar los tickets principales.");
       }
     }
 
@@ -481,7 +481,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                   const stCol = columns.find((c:any) => c.id === st.columnId);
                   const isStDone = stCol?.title.toUpperCase() === 'LISTO' || stCol?.title.toUpperCase() === 'DONE';
                   
-                  // 🔥 SEGURO EN UI EXTERNA: Checkbox bloqueado si no es tuyo o no tiene dueño
+                  //  SEGURO EN UI EXTERNA: Checkbox bloqueado si no es tuyo o no tiene dueño
                   const canCompleteThis = isAdmin || (st.assigneeId === currentUser.id);
                   const isCheckboxDisabled = !canEdit || !canCompleteThis;
 
@@ -551,7 +551,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                     const stCol = columns.find((c:any) => c.id === st.columnId);
                     const stDone = stCol?.title.toUpperCase() === 'LISTO' || stCol?.title.toUpperCase() === 'DONE';
                     
-                    // 🔥 SEGURO EN UI EXTERNA: Checkbox bloqueado si no es tuyo o no tiene dueño
+                    //  SEGURO EN UI EXTERNA: Checkbox bloqueado si no es tuyo o no tiene dueño
                     const canCompleteThis = isAdmin || (st.assigneeId === currentUser.id);
                     const isCheckboxDisabled = !canEdit || !canCompleteThis;
 
