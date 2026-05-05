@@ -1,4 +1,7 @@
 // app/components/TaskModal.tsx
+
+// TaskModal: Componente para la visualizacion y edicion de tickets
+
 'use client';
 
 import React, { useState } from 'react';
@@ -21,13 +24,14 @@ export default function TaskModal({
     currentUserId }: any) {
     
     /* Estado del formulario con todos los campos editables de la tarea */
+    // inicializa los valores con datos de la tarea existente o valores por default
     const [formData, setFormData] = useState({
         title: task.title || '',
-        type: task.parentId ? 'Sub' : (task.type || 'Task'),
+        type: task.parentId ? 'Sub' : (task.type || 'Task'), // tipo de ticket
         priority: task.priority || 'Media',
-        effortHours: task.effortHours || 0,
-        dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
-        assigneeId: task.assigneeId || '',
+        effortHours: task.effortHours || 0,  //esfuerzo planeado para la tarea HU-16
+        dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '', //fecha objetivo 
+        assigneeId: task.assigneeId || '', 
         epicId: task.epicId || '',
         description: task.description || '',
         acceptanceCriteria: task.acceptanceCriteria || '',
@@ -38,7 +42,8 @@ export default function TaskModal({
     const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
 
     const subtasks = allTasks.filter((t: any) => t.parentId === task.id);
-
+    
+    //valores predefinidos de esfuerzo
     const effortOptions = [0, 2, 4, 6, 8, 10, 16, 24, 40];
 
     /* permisos basados en roles */
@@ -48,8 +53,6 @@ export default function TaskModal({
     
     const canEditPlanning = isAdmin || currentUserRole === 'Project Manager';
     
-    const canBlock = isAdmin || currentUserRole === 'Tester';
-    
     const canAddSubtasks = isAdmin || currentUserRole === 'Tech Lead' || currentUserRole === 'Developer' ;
 
     const canAssignSubtasks = currentUserRole !== 'Solo Visor';
@@ -58,6 +61,7 @@ export default function TaskModal({
     const calculateRemainingDays = () => {
         if (!formData.dueDate) return null;
         const today = new Date(); today.setHours(0, 0, 0, 0);
+        // ajuste por zona horaria para evitar desfasajes en la fecha objetivo
         const target = new Date(formData.dueDate); target.setMinutes(target.getMinutes() + target.getTimezoneOffset());
         return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     };
@@ -70,13 +74,13 @@ export default function TaskModal({
         const { name, value, type, checked } = e.target;
         setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     };
-
+    // guarda cambios y cierra modal del fomrulario
     const handleSubmit = () => {
         if (readOnly) return onClose();
         onSave(task.id, formData);
         onClose();
     };
-
+    //creacion de subtareas
     const handleCreateSubtask = () => {
         if (!newSubtaskTitle.trim() || readOnly) return;
         if (onAddSubtask) {
@@ -85,12 +89,13 @@ export default function TaskModal({
         }
     };
 
-/* ESTILOS Reutilizables */
+    /* ESTILOS Reutilizables para inputs */
 
     const inputClass = readOnly
         ? "w-full bg-[#1a1e23] border border-transparent text-sm text-gray-400 rounded-lg px-3 py-2 cursor-not-allowed"
         : "w-full bg-[#22272b] border border-[#30363d] text-sm text-white rounded-lg px-3 py-2 focus:outline-none focus:border-emerald-500";
 
+        // renderizamos el modal con la informacion
    return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
       <div className="w-full max-w-4xl bg-[#161a1d] border border-[#30363d] rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
@@ -123,19 +128,32 @@ export default function TaskModal({
                 </select>
                 {task.parentId && <p className="text-[10px] text-gray-500 mt-1">Las sub-tareas heredan la épica.</p>}
               </div>
-
+              <!-- seleccionar tipo de ticket -->
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Tipo de Ticket</label>
                 <select name="type" value={formData.type} onChange={handleChange} disabled={readOnly || !!task.parentId} className={inputClass}>
-                  <option value="Task">Task</option><option value="Feature">Feature</option><option value="Bug">Bug</option><option value="Doc">Doc</option><option value="Artefacto">Artefacto</option><option value="Spike">Spike</option><option value="Sub">Sub</option>
+                  <option value="Task">Task</option>
+                  <option value="Feature">Feature</option>
+                  <option value="Bug">Bug</option>
+                  <option value="Doc">Doc</option>
+                  <option value="Artefacto">Artefacto</option>
+                  <option value="Spike">Spike</option>
+                  <option value="Sub">Sub</option>
+                  <option value="HU">HU</option>
+
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Prioridad</label>
-                <select name="priority" value={formData.priority} onChange={handleChange} disabled={readOnly || (!canEditPlanning && !canEditCriteria)} className={inputClass}><option value="Alta">🔴 Alta (P0/P1)</option><option value="Media">🟡 Media (P2)</option><option value="Baja">🔵 Baja (P3)</option></select>
+                <select name="priority" value={formData.priority} onChange={handleChange} disabled={readOnly || (!canEditPlanning && !canEditCriteria)} className={inputClass}>
+                  <option value="Alta">🔴 Alta (P0/P1)</option>
+                  <option value="Media">🟡 Media (P2)</option>
+                  <option value="Baja">🔵 Baja (P3)</option>
+                  </select>
               </div>
-
+              
+              <!-- Input de esfuerzo, editable solo por admin y PM -->
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5 flex items-center gap-1.5">
                   <Clock size={14}/> Esfuerzo (Hrs) {!canEditPlanning && !readOnly && <Lock size={10} className="text-gray-500" title="Solo PM" />}
@@ -143,6 +161,7 @@ export default function TaskModal({
                 <select name="effortHours" value={formData.effortHours} onChange={handleChange} disabled={readOnly || !canEditPlanning} className={`${inputClass} ${!canEditPlanning ? 'opacity-70 cursor-not-allowed' : ''}`}>{effortOptions.map(hrs => <option key={hrs} value={hrs}>{hrs} horas</option>)}</select>
               </div>
 
+              <!-- input de fecha objetivo, con indicadocion visual de urgencia -->
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5 flex items-center gap-1.5">
                   <Calendar size={14}/> Fecha Objetivo {!canEditPlanning && !readOnly && <Lock size={10} className="text-gray-500" title="Solo PM" />}
@@ -162,18 +181,6 @@ export default function TaskModal({
                 <select name="assigneeId" value={formData.assigneeId} onChange={handleChange} disabled={readOnly || !canEditPlanning} className={`${inputClass} ${!canEditPlanning ? 'opacity-70 cursor-not-allowed' : ''}`}><option value="">Sin asignar</option>{members?.map((m: any) => <option key={m.userId} value={m.userId}>{m.user.name}</option>)}</select>
               </div>
 
-              <div className="pt-2">
-                <label className={`flex items-center gap-3 group ${readOnly || !canBlock ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}>
-                  <div className="relative">
-                    <input type="checkbox" name="isBlocked" checked={formData.isBlocked} onChange={handleChange} disabled={readOnly || !canBlock} className="sr-only" />
-                    <div className={`block w-10 h-6 rounded-full transition-colors ${formData.isBlocked ? 'bg-red-500' : 'bg-[#30363d]'}`}></div>
-                    <div className={`dot absolute left-1 top-1 w-4 h-4 rounded-full transition-transform ${formData.isBlocked ? 'transform translate-x-4 bg-white' : 'bg-gray-400'}`}></div>
-                  </div>
-                  <span className={`text-sm font-bold flex items-center gap-1.5 ${formData.isBlocked ? 'text-red-400' : 'text-gray-400'}`}>
-                    <AlertCircle size={16} /> Bloqueado {!canBlock && !readOnly && <Lock size={10} className="text-gray-500" title="Solo Tester" />}
-                  </span>
-                </label>
-              </div>
 
               {task.closedAt && (
                 <div className="pt-4 border-t border-[#30363d] mt-4">
