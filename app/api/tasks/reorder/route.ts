@@ -7,11 +7,11 @@ import { prisma } from "../../../../lib/db";
 export async function PUT(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) return new NextResponse("No permitido", { status: 401 });
+    if (!session?.user?.email) return new NextResponse("No autorizado", { status: 401 });
 
     const { tasks } = await request.json();
 
-    
+    // Actualizamos el orden y la columna de todas las tareas afectadas en una sola transacción
     await prisma.$transaction(
       tasks.map((task: any) =>
         prisma.task.update({

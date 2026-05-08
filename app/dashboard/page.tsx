@@ -5,16 +5,16 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Target, ArrowRight, LayoutDashboard, Sparkles } from "lucide-react";
 import UserProfileMenu from "../components/UserProfileMenu";
-import { prisma } from "../../lib/db"; 
+import { prisma } from "../../lib/db"; // <-- NUEVO: Importamos la base de datos
 
 export default async function DashboardPage() {
-  // Verificamos si hay sesión
+  // 1. Verificamos si hay sesión
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
     redirect("/login");
   }
 
-
+  // 2. NUEVO: Traemos los datos más "frescos" directamente de la base de datos
   const dbUser = await prisma.user.findUnique({
     where: { email: session.user.email }
   });
@@ -43,7 +43,7 @@ export default async function DashboardPage() {
           <h1 className="text-xl font-bold text-white tracking-wide">Tasky</h1>
         </div>
         <div className="flex items-center gap-4 relative">
-          
+          {/* NUEVO: Le pasamos 'dbUser' en lugar de 'session.user' */}
           <UserProfileMenu user={dbUser} />
         </div>
       </header>
@@ -51,7 +51,7 @@ export default async function DashboardPage() {
       {/* CONTENIDO PRINCIPAL */}
       <main className="flex-1 flex flex-col items-center mt-12 md:mt-20 px-4 relative z-10 overflow-y-auto">
         
-        {/* SECCIÓN DE BIENVENIDA  */}
+        {/* --- SECCIÓN DE BIENVENIDA CON ONDAS DE SONIDO --- */}
         <div className="w-full max-w-5xl flex flex-col md:flex-row items-center justify-between gap-10 mb-16 p-10 rounded-3xl bg-[#161a1d] border border-[#30363d] relative overflow-hidden shadow-2xl shadow-black/50 hover:shadow-[0_0_40px_rgba(16,185,129,0.1)] transition-shadow duration-700">
           
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-950/10 to-transparent pointer-events-none"></div>
@@ -78,7 +78,7 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* SECCIÓN DE TARJETAS Y BANNER*/}
+        {/* --- SECCIÓN DE TARJETAS Y BANNER --- */}
         <div className="w-full max-w-5xl space-y-16 mb-20">
           <div className="w-full">
             <div className="flex justify-between items-end mb-4 px-2">

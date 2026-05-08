@@ -84,7 +84,7 @@ export default function WorkspaceClient({ user, taskyspaces }: WorkspaceClientPr
   return (
     <div className="flex flex-col h-screen bg-[#1d2125] text-[#c9d1d9] font-sans overflow-hidden relative selection:bg-emerald-500/30 selection:text-emerald-200">
       
-      
+      {/* Resplandor de fondo global */}
       <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-emerald-500/5 blur-[120px] rounded-full pointer-events-none z-0 hidden md:block"></div>
 
       {isWizardOpen && <CreateTaskyspaceWizard onClose={() => setIsWizardOpen(false)} user={user} />}

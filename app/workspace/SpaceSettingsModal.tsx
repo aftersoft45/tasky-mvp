@@ -17,7 +17,7 @@ export default function SpaceSettingsModal({ spaceId, spaceName, onClose }: Prop
   const [members, setMembers] = useState<any[]>([]);
   const [pending, setPending] = useState<any[]>([]);
   const [emailToInvite, setEmailToInvite] = useState('');
-  const [roleToInvite, setRoleToInvite] = useState('Developer'); 
+  const [roleToInvite, setRoleToInvite] = useState('Developer'); // 🔥 Rol por defecto actualizado
   const [loading, setLoading] = useState(true);
 
   // Cargar datos al abrir el modal
@@ -50,7 +50,7 @@ export default function SpaceSettingsModal({ spaceId, spaceName, onClose }: Prop
         onClose();
         router.refresh();
       } else {
-        loadData(); 
+        loadData(); // Recargamos la lista
       }
     } else {
       alert(await res.text());
@@ -88,7 +88,7 @@ export default function SpaceSettingsModal({ spaceId, spaceName, onClose }: Prop
           <button 
             onClick={() => setActiveTab('miembros')} 
             className={`py-3 px-4 font-medium text-sm transition-colors border-b-2 whitespace-nowrap ${activeTab === 'miembros' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-gray-400 hover:text-white'}`}
->
+          >
             Miembros del Equipo
           </button>
           <button 
@@ -124,7 +124,7 @@ export default function SpaceSettingsModal({ spaceId, spaceName, onClose }: Prop
                     onChange={e => setRoleToInvite(e.target.value)} 
                     className="w-full sm:w-auto bg-[#22272b] border border-[#30363d] rounded-lg px-3 py-2.5 text-sm text-white font-medium focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all cursor-pointer"
                   >
-                    
+                    {/*  NUEVOS ROLES ÁGILES  */}
                     <option value="Developer">Developer</option>
                     <option value="Project Manager">Project Manager</option>
                     <option value="Product Owner">Product Owner</option>
@@ -168,7 +168,7 @@ export default function SpaceSettingsModal({ spaceId, spaceName, onClose }: Prop
                           onChange={(e) => executeAction({ action: 'change_role', targetUserId: m.user.id, newRole: e.target.value }, 'Rol actualizado')}
                           className="bg-[#161a1d] border border-[#30363d] rounded-lg text-xs md:text-sm text-gray-300 py-1.5 px-2 outline-none focus:border-emerald-500 transition-colors cursor-pointer font-medium"
                         >
-                          
+                          {/*  NUEVOS ROLES ÁGILES  */}
                           <option value="Developer">Developer</option>
                           <option value="Project Manager">Project Manager</option>
                           <option value="Product Owner">Product Owner</option>
