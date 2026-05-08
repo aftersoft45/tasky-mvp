@@ -55,6 +55,8 @@ export default function TaskModal({
     
     const canAddSubtasks = isAdmin || currentUserRole === 'Tech Lead' || currentUserRole === 'Developer' ;
 
+    const canBlock = isAdmin || currentUserRole === 'Tester'; 
+
     const canAssignSubtasks = currentUserRole !== 'Solo Visor';
 
     /* calcular dias restantes para la fecha objetivo*/
@@ -179,6 +181,20 @@ export default function TaskModal({
                   Responsable {!canEditPlanning && !readOnly && <Lock size={10} className="text-gray-500" title="Solo PM" />}
                 </label>
                 <select name="assigneeId" value={formData.assigneeId} onChange={handleChange} disabled={readOnly || !canEditPlanning} className={`${inputClass} ${!canEditPlanning ? 'opacity-70 cursor-not-allowed' : ''}`}><option value="">Sin asignar</option>{members?.map((m: any) => <option key={m.userId} value={m.userId}>{m.user.name}</option>)}</select>
+              </div>
+
+              <!-- Bloqueo para HU-31 -->
+              <div className="pt-2">
+                <label className={`flex items-center gap-3 group ${readOnly || !canBlock ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}>
+                  <div className="relative">
+                    <input type="checkbox" name="isBlocked" checked={formData.isBlocked} onChange={handleChange} disabled={readOnly || !canBlock} className="sr-only" />
+                    <div className={`block w-10 h-6 rounded-full transition-colors ${formData.isBlocked ? 'bg-red-500' : 'bg-[#30363d]'}`}></div>
+                    <div className={`dot absolute left-1 top-1 w-4 h-4 rounded-full transition-transform ${formData.isBlocked ? 'transform translate-x-4 bg-white' : 'bg-gray-400'}`}></div>
+                  </div>
+                  <span className={`text-sm font-bold flex items-center gap-1.5 ${formData.isBlocked ? 'text-red-400' : 'text-gray-400'}`}>
+                    <AlertCircle size={16} /> Bloqueado {!canBlock && !readOnly && <Lock size={10} className="text-gray-500" title="Solo Tester" />}
+                  </span>
+                </label>
               </div>
 
 
