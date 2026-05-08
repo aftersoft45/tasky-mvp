@@ -765,7 +765,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                 <div>
                   <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight mb-4">Resumen Ágil del Sprint</h1>
                   <div className="flex items-center mb-6 border-b border-[#30363d] pb-4"><SprintSelector viewedSprint={viewedSprint} sprints={sprints} setSelectedSprintId={setSelectedSprintId} /></div>
-                  {!viewedSprint ? (<p className="text-gray-400 text-yellow-500 font-medium text-sm md:text-base">⚠️ No hay ningún Sprint para analizar en este momento.</p>) : (
+                  {!viewedSprint ? (<p className="text-gray-400 text-yellow-500 font-medium text-sm md:text-base">No hay ningún Sprint para analizar en este momento. Inicia un sprint</p>) : (
                     <>
                       <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                         <div className="bg-[#161a1d] p-4 md:p-5 rounded-2xl border border-[#30363d] shadow-lg relative overflow-hidden">
