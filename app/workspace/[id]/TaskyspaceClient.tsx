@@ -215,14 +215,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   };
 
   const handleToggleSubtaskStatus = async (subtaskId: string, isCurrentlyDone: boolean) => {
-    //  VALIDACIÓN MAESTRA DE SEGURIDAD PARA SUB-TAREAS 
-    const st = allTasks.find((t:any) => t.id === subtaskId);
-    if (st && !isAdmin) {
-      if (!st.assigneeId) {
-        return alert("Acción bloqueada: Debes asignarte esta sub-tarea antes de poder completarla.");
-      }
-      if (st.assigneeId !== currentUser.id) {
-        return alert(" Permiso denegado: Esta sub-tarea está asignada a otro miembro del equipo.");
     //VALIDACIÓN MAESTRA DE SEGURIDAD PARA SUB-TAREAS
     const st = allTasks.find((t:any) => t.id === subtaskId);
     if (st && !isAdmin) {
@@ -264,14 +256,14 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   };
 
   const handleCreateSprint = async () => {
-    if (!canManageSprints) return alert(" Solo el Project Manager o Administrador pueden crear Sprints.");
+    if (!canManageSprints) return alert("❌ Solo el Project Manager o Administrador pueden crear Sprints.");
     const name = `Sprint ${sprints.length + 1}`;
     const res = await fetch('/api/sprints', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, taskyspaceId: space.id }) });
     if (res.ok) { const newSprint = await res.json(); setSprints([...sprints, newSprint]); router.refresh(); }
   };
 
   const handleCreateEpic = async () => {
-    if (!canManageBacklog) return alert(" Solo PO, PM o Admin pueden crear Épicas.");
+    if (!canManageBacklog) return alert("❌ Solo PO, PM o Admin pueden crear Épicas.");
     const name = prompt("Escribe el nombre de la nueva Épica (Ej: Sistema de Pagos):");
     if (!name || name.trim() === "") return;
     const res = await fetch('/api/epics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, taskyspaceId: space.id }) });
@@ -288,7 +280,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   const handleDeleteEpic = async (epicId: string) => {
     if (!isAdmin) return alert("Solo el Administrador puede borrar Épicas.");
     if (!confirm(" ¿Eliminar esta Épica? Las tareas asociadas perderán esta etiqueta, pero NO se borrarán.")) return;
-    if (!confirm(" ¿Eliminar esta Épica? Las tareas asociadas perderán esta etiqueta, pero NO se borrarán.")) return;
     setEpics(epics.filter((e:any) => e.id !== epicId));
     setColumns((prev: any) => prev.map((col: any) => ({ ...col, tasks: col.tasks.map((t: any) => t.epicId === epicId ? { ...t, epicId: null } : t) })));
     await fetch(`/api/epics?epicId=${epicId}`, { method: 'DELETE' });
@@ -296,18 +287,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   };
 
   const handleStartSprint = async (sprintId: string) => {
-    if (!canManageSprints) return alert(" Solo el Project Manager o Administrador pueden iniciar Sprints.");
-    if (activeSprint) return alert(" Error: Ya hay un Sprint activo. Debes completarlo antes de iniciar otro.");
-    const startDate = new Date(); const endDate = new Date(); endDate.setDate(startDate.getDate() + 14);
-    const res = await fetch('/api/sprints', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sprintId, status: 'ACTIVE', startDate, endDate }) });
-    if (res.ok) { setSprints(sprints.map((s: any) => s.id === sprintId ? { ...s, status: 'ACTIVE', startDate, endDate } : s)); setSelectedSprintId(sprintId); setActiveView('tablero'); router.refresh(); }
-  };
-
-  const handleCompleteSprint = async (sprintId: string) => {
-    if (!canManageSprints) return alert("🛡️ Acceso denegado: Solo el Project Manager o Administrador pueden dar por completado un Sprint.");
-    const sprintTasks = allTasks.filter((t: any) => t.sprintId === sprintId);
-    const incompleteTasks = sprintTasks.filter((t: any) => t.columnId !== doneColumn?.id);
-    if (incompleteTasks.length > 0) return alert(` No puedes completar este Sprint. Aún hay ${incompleteTasks.length} tarea(s) fuera de la columna '${doneColumn?.title || 'Listo'}'.`);
     if (!canManageSprints) return alert(" Solo el Project Manager o Administrador pueden iniciar Sprints.");
     if (activeSprint) return alert(" Error: Ya hay un Sprint activo. Debes completarlo antes de iniciar otro.");
     
@@ -350,7 +329,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   const handleDeleteSprint = async (sprintId: string) => {
     if (!canManageSprints) return alert("Solo PM o Admin pueden borrar sprints.");
     if (!confirm(" ¿Eliminar este Sprint? Las tareas regresarán al Backlog.")) return;
-    if (!confirm(" ¿Eliminar este Sprint? Las tareas regresarán al Backlog.")) return;
     setSprints(sprints.filter((s:any) => s.id !== sprintId));
     setColumns((prev: any) => prev.map((col: any) => ({ ...col, tasks: col.tasks.map((t: any) => t.sprintId === sprintId ? { ...t, sprintId: null } : t) })));
     await fetch(`/api/sprints?sprintId=${sprintId}`, { method: 'DELETE' }); router.refresh();
@@ -363,7 +341,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
 
     if (source.droppableId !== destination.droppableId && destination.droppableId === doneColumn?.id) {
       if (!canApproveDone) {
-        alert(" Movimiento bloqueado: Solo el Tech Lead (o Admin) puede validar y pasar tickets a la columna 'Listo'.");
+        alert("❌ Movimiento bloqueado: Solo el Tech Lead (o Admin) puede validar y pasar tickets a la columna 'Listo'.");
         return;
       }
     }
@@ -387,7 +365,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
         });
 
         if (hasIncomplete) {
-          alert(" Acción bloqueada: No puedes mover esta tarea a 'Listo' porque aún tiene sub-tareas pendientes por completar.");
           alert(" Acción bloqueada: No puedes mover esta tarea a 'Listo' porque aún tiene sub-tareas pendientes por completar.");
           return; 
         }
@@ -512,17 +489,16 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     const targetTask = allTasks.find((t:any) => t.id === taskId);
     const isSubtask = !!targetTask?.parentId;
 
-    // FILTRO DE SEGURIDAD PARA ASIGNACIONES 
     // FILTRO DE SEGURIDAD PARA ASIGNACIONES
     if (!isAdmin && !isPM) {
       if (isSubtask) {
         // En sub-tareas, dejamos que el TechLead asigne a quien sea.
         // Si es un Developer normal, solo puede auto-asignárselo.
         if (!isTechLead && assigneeId !== currentUser.id && assigneeId !== "") {
-           return alert(" Solo puedes asignarte la sub-tarea a ti mismo. Deja que el Tech Lead asigne a otros.");
+           return alert("❌ Solo puedes asignarte la sub-tarea a ti mismo. Deja que el Tech Lead asigne a otros.");
         }
       } else {
-        return alert(" Permiso denegado: Solo el Project Manager puede reasignar los tickets principales.");
+        return alert("❌ Permiso denegado: Solo el Project Manager puede reasignar los tickets principales.");
       }
     }
 
@@ -590,7 +566,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                   const stCol = columns.find((c:any) => c.id === st.columnId);
                   const isStDone = stCol?.title.toUpperCase() === 'LISTO' || stCol?.title.toUpperCase() === 'DONE';
                   
-                  //  SEGURO EN UI EXTERNA: Checkbox bloqueado si no es tuyo o no tiene dueño
                   const canCompleteThis = isAdmin || (st.assigneeId === currentUser.id);
                   const isCheckboxDisabled = !canEdit || !canCompleteThis;
 
@@ -646,7 +621,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                   <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${getTypeColor(task.type)}`}>{task.type || 'Task'}</span>
                   {epic && (
                     <span className="text-[8px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-purple-500/50 bg-purple-500/10 text-purple-300 font-extrabold shadow-[0_0_10px_rgba(168,85,247,0.4)] truncate max-w-[120px]">
-                      🚀 {epic.name}
                       {epic.name}
                     </span>
                   )}
@@ -661,7 +635,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                     const stCol = columns.find((c:any) => c.id === st.columnId);
                     const stDone = stCol?.title.toUpperCase() === 'LISTO' || stCol?.title.toUpperCase() === 'DONE';
                     
-                    //  SEGURO EN UI EXTERNA: Checkbox bloqueado si no es tuyo o no tiene dueño
                     
                     const canCompleteThis = isAdmin || (st.assigneeId === currentUser.id);
                     const isCheckboxDisabled = !canEdit || !canCompleteThis;
@@ -895,33 +868,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                         <div className="bg-[#161a1d] p-4 md:p-5 rounded-2xl border border-[#30363d] shadow-lg relative overflow-hidden">
                           <div className="flex justify-between items-start mb-2"><div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400"><Users size={18} /></div><span className="text-[10px] md:text-xs font-bold text-purple-400 bg-purple-500/10 px-2 py-1 rounded-md">Total</span></div>
                           <p className="text-xs md:text-sm text-gray-400 font-medium">Miembros</p><p className="text-xl md:text-2xl font-bold text-white">{space.members.length}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mt-6 md:mt-8">
-                        <div className="bg-[#161a1d] p-5 md:p-8 rounded-2xl border border-[#30363d] shadow-lg">
-                          <h3 className="text-base md:text-lg font-bold text-white mb-4 md:mb-6 flex items-center gap-2"><Target className="text-emerald-400" size={18}/> Velocidad del Sprint</h3>
-                          <div className="flex items-end justify-between mb-2"><span className="text-3xl md:text-4xl font-extrabold text-white">{progressPercentage}%</span><span className="text-xs md:text-sm text-gray-400 font-medium">{pendingEffortHours} horas pendientes</span></div>
-                          <div className="w-full h-3 md:h-4 bg-[#22272b] rounded-full overflow-hidden border border-[#30363d]"><div className="h-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-1000 ease-out relative" style={{ width: `${progressPercentage}%` }}>{isViewedSprintActive && <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div>}</div></div>
-                          <div className="mt-6 md:mt-8 space-y-3"><p className="text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Distribución por Estado</p>{sortedColumns.map((col: any) => { const countInSprint = viewedSprintTasks.filter((t:any) => t.columnId === col.id).length; return (<div key={col.id} className="flex items-center justify-between"><div className="flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${col.id === doneColumn?.id ? 'bg-emerald-500' : 'bg-gray-500'}`}></div><span className="text-xs md:text-sm text-gray-300 font-medium">{col.title}</span></div><span className="text-xs md:text-sm font-bold text-white bg-[#22272b] px-2 py-0.5 rounded border border-[#30363d]">{countInSprint} tickets</span></div>)})}</div>
-                        </div>
-                        <div className="bg-[#161a1d] p-5 md:p-8 rounded-2xl border border-[#30363d] shadow-lg">
-                          <h3 className="text-base md:text-lg font-bold text-white mb-4 md:mb-6 flex items-center gap-2"><Clock className="text-cyan-400" size={18}/> Carga Activa</h3>
-                          <div className="space-y-4 md:space-y-5">
-                            {space.members.map((m: any) => {
-                              const userHours = memberEffort[m.userId] || 0;
-                              const activeEffort = totalEffortHours - completedEffortHours;
-                              const userPercentage = activeEffort === 0 ? 0 : Math.round((userHours / activeEffort) * 100);
-                              return (
-                                <div key={m.userId} className="group">
-                                  <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-2 md:gap-3"><div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-emerald-900 border border-[#30363d] flex items-center justify-center text-[10px] md:text-xs font-bold text-white overflow-hidden shrink-0">{m.user.image ? <img src={m.user.image} referrerPolicy="no-referrer" className="w-full h-full object-cover" alt="avatar"/> : m.user.name.charAt(0)}</div><span className="text-xs md:text-sm text-gray-300 font-medium group-hover:text-white transition-colors truncate max-w-[100px] md:max-w-none">{m.user.name}</span></div><span className="text-xs md:text-sm font-bold text-emerald-400">{userHours}h</span>
-                                  </div>
-                                  <div className="w-full h-1 md:h-1.5 bg-[#22272b] rounded-full overflow-hidden"><div className="h-full bg-cyan-500/80 rounded-full transition-all duration-1000" style={{ width: `${userPercentage}%` }}></div></div>
-                                </div>
-                              );
-                            })}
-                          </div>
                         </div>
                       </div>
 
@@ -1205,5 +1151,4 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
       </div>
     </>
   );
-}
 }
