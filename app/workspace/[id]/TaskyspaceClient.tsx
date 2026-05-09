@@ -12,6 +12,7 @@ import TaskModal from '../../components/TaskModal';
 import TaskListView from '../../components/TaskListView';
 import EpicModal from '../../components/EpicModal'; 
 
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 const getRoleBadgeStyle = (roleName: string) => {
   switch(roleName) {
     case 'Administrador': return 'bg-red-500/10 text-red-400 border-red-500/20';
@@ -136,6 +137,68 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   
   const progressPercentage = totalEffortHours > 0 ? Math.round((completedEffortHours / totalEffortHours) * 100) : (totalSprintTasksCount === 0 ? 0 : Math.round((doneTasksCount / totalSprintTasksCount) * 100));
 
+  // --- INICIO LÓGICA BURNDOWN CHART ---
+  let burndownData: any[] = [];
+  if (viewedSprint && viewedSprint.startDate && viewedSprint.endDate) {
+    const start = new Date(viewedSprint.startDate);
+    const end = new Date(viewedSprint.endDate);
+    const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)));
+    
+    // Cuánto deberíamos quemar por día idealmente
+    const dailyBurnRate = totalEffortHours / totalDays;
+    let actualRemaining = totalEffortHours;
+    
+    for (let i = 0; i <= totalDays; i++) {
+      const currentDayDate = new Date(start);
+      currentDayDate.setDate(start.getDate() + i);
+      
+      // Calcular la línea ideal
+      const idealRemaining = Math.max(0, totalEffortHours - (dailyBurnRate * i));
+      
+      // Calcular la línea real (restando los tickets que se cerraron ese día o antes)
+      const isFutureDate = currentDayDate > new Date();
+      
+      // Si el día ya pasó, calculamos; si es futuro, no pintamos la línea real
+      let dayActual = null;
+      if (!isFutureDate) {
+         const closedEffortUpToThisDay = doneTasksList.reduce((sum: number, task: any) => {
+            if (task.closedAt && new Date(task.closedAt) <= currentDayDate) {
+              return sum + (Number(task.effortHours) || 0);
+            }
+            return sum;
+         }, 0);
+         dayActual = totalEffortHours - closedEffortUpToThisDay;
+      }
+
+      burndownData.push({
+        day: `Día ${i}`,
+        ideal: Math.round(idealRemaining * 10) / 10,
+        actual: dayActual !== null ? Math.round(dayActual * 10) / 10 : null,
+      });
+    }
+  }
+  // --- FIN LÓGICA BURNDOWN CHART ---
+
+  // --- INICIO LÓGICA ESFUERZO INDIVIDUAL (BARRAS) ---
+  const esfuerzoIndividualData = space.members.map((m: any) => {
+    // Horas totales asignadas en este sprint a esta persona
+    const asignadas = viewedSprintTasks
+      .filter((t: any) => t.assigneeId === m.userId)
+      .reduce((sum: number, t: any) => sum + (Number(t.effortHours) || 0), 0);
+      
+    // Horas que esta persona ya movió a la columna "Listo"
+    const completadas = viewedSprintTasks
+      .filter((t: any) => t.assigneeId === m.userId && t.columnId === doneColumn?.id)
+      .reduce((sum: number, t: any) => sum + (Number(t.effortHours) || 0), 0);
+
+    return {
+      nombre: m.user.name.split(' ')[0], // Solo el primer nombre para que quepa bien
+      asignadas: asignadas,
+      completadas: completadas
+    };
+  }).filter((data: any) => data.asignadas > 0 || data.completadas > 0); // Solo mostramos a los que tienen trabajo
+  // --- FIN LÓGICA ESFUERZO INDIVIDUAL ---
+
   const blockedTasksCount = viewedSprintTasks.filter((t: any) => t.isBlocked).length;
   const highPriorityCount = viewedSprintTasks.filter((t: any) => t.priority === 'Alta' && t.columnId !== doneColumn?.id).length;
 
@@ -152,14 +215,22 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   };
 
   const handleToggleSubtaskStatus = async (subtaskId: string, isCurrentlyDone: boolean) => {
-    // 🔥 VALIDACIÓN MAESTRA DE SEGURIDAD PARA SUB-TAREAS 🔥
+    //  VALIDACIÓN MAESTRA DE SEGURIDAD PARA SUB-TAREAS 
     const st = allTasks.find((t:any) => t.id === subtaskId);
     if (st && !isAdmin) {
       if (!st.assigneeId) {
-        return alert("⚠️ Acción bloqueada: Debes asignarte esta sub-tarea antes de poder completarla.");
+        return alert("Acción bloqueada: Debes asignarte esta sub-tarea antes de poder completarla.");
       }
       if (st.assigneeId !== currentUser.id) {
-        return alert("❌ Permiso denegado: Esta sub-tarea está asignada a otro miembro del equipo.");
+        return alert(" Permiso denegado: Esta sub-tarea está asignada a otro miembro del equipo.");
+    //VALIDACIÓN MAESTRA DE SEGURIDAD PARA SUB-TAREAS
+    const st = allTasks.find((t:any) => t.id === subtaskId);
+    if (st && !isAdmin) {
+      if (!st.assigneeId) {
+        return alert(" Acción bloqueada: Debes asignarte esta sub-tarea antes de poder completarla.");
+      }
+      if (st.assigneeId !== currentUser.id) {
+        return alert(" Permiso denegado: Esta sub-tarea está asignada a otro miembro del equipo.");
       }
     }
 
@@ -193,14 +264,14 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   };
 
   const handleCreateSprint = async () => {
-    if (!canManageSprints) return alert("❌ Solo el Project Manager o Administrador pueden crear Sprints.");
+    if (!canManageSprints) return alert(" Solo el Project Manager o Administrador pueden crear Sprints.");
     const name = `Sprint ${sprints.length + 1}`;
     const res = await fetch('/api/sprints', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, taskyspaceId: space.id }) });
     if (res.ok) { const newSprint = await res.json(); setSprints([...sprints, newSprint]); router.refresh(); }
   };
 
   const handleCreateEpic = async () => {
-    if (!canManageBacklog) return alert("❌ Solo PO, PM o Admin pueden crear Épicas.");
+    if (!canManageBacklog) return alert(" Solo PO, PM o Admin pueden crear Épicas.");
     const name = prompt("Escribe el nombre de la nueva Épica (Ej: Sistema de Pagos):");
     if (!name || name.trim() === "") return;
     const res = await fetch('/api/epics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, taskyspaceId: space.id }) });
@@ -216,7 +287,8 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
 
   const handleDeleteEpic = async (epicId: string) => {
     if (!isAdmin) return alert("Solo el Administrador puede borrar Épicas.");
-    if (!confirm("⚠️ ¿Eliminar esta Épica? Las tareas asociadas perderán esta etiqueta, pero NO se borrarán.")) return;
+    if (!confirm(" ¿Eliminar esta Épica? Las tareas asociadas perderán esta etiqueta, pero NO se borrarán.")) return;
+    if (!confirm(" ¿Eliminar esta Épica? Las tareas asociadas perderán esta etiqueta, pero NO se borrarán.")) return;
     setEpics(epics.filter((e:any) => e.id !== epicId));
     setColumns((prev: any) => prev.map((col: any) => ({ ...col, tasks: col.tasks.map((t: any) => t.epicId === epicId ? { ...t, epicId: null } : t) })));
     await fetch(`/api/epics?epicId=${epicId}`, { method: 'DELETE' });
@@ -224,8 +296,8 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   };
 
   const handleStartSprint = async (sprintId: string) => {
-    if (!canManageSprints) return alert("❌ Solo el Project Manager o Administrador pueden iniciar Sprints.");
-    if (activeSprint) return alert("❌ Error: Ya hay un Sprint activo. Debes completarlo antes de iniciar otro.");
+    if (!canManageSprints) return alert(" Solo el Project Manager o Administrador pueden iniciar Sprints.");
+    if (activeSprint) return alert(" Error: Ya hay un Sprint activo. Debes completarlo antes de iniciar otro.");
     const startDate = new Date(); const endDate = new Date(); endDate.setDate(startDate.getDate() + 14);
     const res = await fetch('/api/sprints', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sprintId, status: 'ACTIVE', startDate, endDate }) });
     if (res.ok) { setSprints(sprints.map((s: any) => s.id === sprintId ? { ...s, status: 'ACTIVE', startDate, endDate } : s)); setSelectedSprintId(sprintId); setActiveView('tablero'); router.refresh(); }
@@ -235,7 +307,41 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     if (!canManageSprints) return alert("🛡️ Acceso denegado: Solo el Project Manager o Administrador pueden dar por completado un Sprint.");
     const sprintTasks = allTasks.filter((t: any) => t.sprintId === sprintId);
     const incompleteTasks = sprintTasks.filter((t: any) => t.columnId !== doneColumn?.id);
-    if (incompleteTasks.length > 0) return alert(`❌ No puedes completar este Sprint. Aún hay ${incompleteTasks.length} tarea(s) fuera de la columna '${doneColumn?.title || 'Listo'}'.`);
+    if (incompleteTasks.length > 0) return alert(` No puedes completar este Sprint. Aún hay ${incompleteTasks.length} tarea(s) fuera de la columna '${doneColumn?.title || 'Listo'}'.`);
+    if (!canManageSprints) return alert(" Solo el Project Manager o Administrador pueden iniciar Sprints.");
+    if (activeSprint) return alert(" Error: Ya hay un Sprint activo. Debes completarlo antes de iniciar otro.");
+    
+    // --- NUEVA LÓGICA: Preguntar la duración del sprint ---
+    const diasInput = prompt("¿Cuántos días durará este Sprint? (A partir de hoy)", "5");
+    if (diasInput === null) return; // Si el usuario le da a "Cancelar", abortamos
+    
+    const dias = parseInt(diasInput, 10);
+    if (isNaN(dias) || dias <= 0) return alert(" Por favor ingresa un número válido de días mayor a 0.");
+
+    // Calculamos las fechas exactas
+    const startDate = new Date(); 
+    const endDate = new Date(); 
+    endDate.setDate(startDate.getDate() + dias);
+    
+    const res = await fetch('/api/sprints', { 
+      method: 'PATCH', 
+      headers: { 'Content-Type': 'application/json' }, 
+      body: JSON.stringify({ sprintId, status: 'ACTIVE', startDate, endDate }) 
+    });
+    
+    if (res.ok) { 
+      setSprints(sprints.map((s: any) => s.id === sprintId ? { ...s, status: 'ACTIVE', startDate, endDate } : s)); 
+      setSelectedSprintId(sprintId); 
+      setActiveView('tablero'); 
+      router.refresh(); 
+    }
+  };
+
+  const handleCompleteSprint = async (sprintId: string) => {
+    if (!canManageSprints) return alert(" Acceso denegado: Solo el Project Manager o Administrador pueden dar por completado un Sprint.");
+    const sprintTasks = allTasks.filter((t: any) => t.sprintId === sprintId);
+    const incompleteTasks = sprintTasks.filter((t: any) => t.columnId !== doneColumn?.id);
+    if (incompleteTasks.length > 0) return alert(`No puedes completar este Sprint. Aún hay ${incompleteTasks.length} tarea(s) fuera de la columna '${doneColumn?.title || 'Listo'}'.`);
     if (!confirm("¿Seguro que quieres dar por completado este sprint?")) return;
     const res = await fetch('/api/sprints', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sprintId, status: 'COMPLETED' }) });
     if (res.ok) { setSprints(sprints.map((s: any) => s.id === sprintId ? { ...s, status: 'COMPLETED' } : s)); setSelectedSprintId(sprintId); setActiveView('tablero'); router.refresh(); }
@@ -243,7 +349,8 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
 
   const handleDeleteSprint = async (sprintId: string) => {
     if (!canManageSprints) return alert("Solo PM o Admin pueden borrar sprints.");
-    if (!confirm("⚠️ ¿Eliminar este Sprint? Las tareas regresarán al Backlog.")) return;
+    if (!confirm(" ¿Eliminar este Sprint? Las tareas regresarán al Backlog.")) return;
+    if (!confirm(" ¿Eliminar este Sprint? Las tareas regresarán al Backlog.")) return;
     setSprints(sprints.filter((s:any) => s.id !== sprintId));
     setColumns((prev: any) => prev.map((col: any) => ({ ...col, tasks: col.tasks.map((t: any) => t.sprintId === sprintId ? { ...t, sprintId: null } : t) })));
     await fetch(`/api/sprints?sprintId=${sprintId}`, { method: 'DELETE' }); router.refresh();
@@ -256,7 +363,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
 
     if (source.droppableId !== destination.droppableId && destination.droppableId === doneColumn?.id) {
       if (!canApproveDone) {
-        alert("❌ Movimiento bloqueado: Solo el Tech Lead (o Admin) puede validar y pasar tickets a la columna 'Listo'.");
+        alert(" Movimiento bloqueado: Solo el Tech Lead (o Admin) puede validar y pasar tickets a la columna 'Listo'.");
         return;
       }
     }
@@ -280,7 +387,8 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
         });
 
         if (hasIncomplete) {
-          alert("❌ Acción bloqueada: No puedes mover esta tarea a 'Listo' porque aún tiene sub-tareas pendientes por completar.");
+          alert(" Acción bloqueada: No puedes mover esta tarea a 'Listo' porque aún tiene sub-tareas pendientes por completar.");
+          alert(" Acción bloqueada: No puedes mover esta tarea a 'Listo' porque aún tiene sub-tareas pendientes por completar.");
           return; 
         }
         movedTask.closedAt = new Date().toISOString(); 
@@ -404,16 +512,17 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     const targetTask = allTasks.find((t:any) => t.id === taskId);
     const isSubtask = !!targetTask?.parentId;
 
-    // 🔥 FILTRO DE SEGURIDAD PARA ASIGNACIONES 🔥
+    // FILTRO DE SEGURIDAD PARA ASIGNACIONES 
+    // FILTRO DE SEGURIDAD PARA ASIGNACIONES
     if (!isAdmin && !isPM) {
       if (isSubtask) {
         // En sub-tareas, dejamos que el TechLead asigne a quien sea.
         // Si es un Developer normal, solo puede auto-asignárselo.
         if (!isTechLead && assigneeId !== currentUser.id && assigneeId !== "") {
-           return alert("❌ Solo puedes asignarte la sub-tarea a ti mismo. Deja que el Tech Lead asigne a otros.");
+           return alert(" Solo puedes asignarte la sub-tarea a ti mismo. Deja que el Tech Lead asigne a otros.");
         }
       } else {
-        return alert("❌ Permiso denegado: Solo el Project Manager puede reasignar los tickets principales.");
+        return alert(" Permiso denegado: Solo el Project Manager puede reasignar los tickets principales.");
       }
     }
 
@@ -481,7 +590,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                   const stCol = columns.find((c:any) => c.id === st.columnId);
                   const isStDone = stCol?.title.toUpperCase() === 'LISTO' || stCol?.title.toUpperCase() === 'DONE';
                   
-                  // 🔥 SEGURO EN UI EXTERNA: Checkbox bloqueado si no es tuyo o no tiene dueño
+                  //  SEGURO EN UI EXTERNA: Checkbox bloqueado si no es tuyo o no tiene dueño
                   const canCompleteThis = isAdmin || (st.assigneeId === currentUser.id);
                   const isCheckboxDisabled = !canEdit || !canCompleteThis;
 
@@ -538,6 +647,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                   {epic && (
                     <span className="text-[8px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-purple-500/50 bg-purple-500/10 text-purple-300 font-extrabold shadow-[0_0_10px_rgba(168,85,247,0.4)] truncate max-w-[120px]">
                       🚀 {epic.name}
+                      {epic.name}
                     </span>
                   )}
                   <span title={`Prioridad: ${task.priority || 'Media'}`} className={`ml-auto w-2 h-2 rounded-full shrink-0 ${task.priority === 'Alta' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]' : task.priority === 'Baja' ? 'bg-blue-500' : 'bg-yellow-500'}`}></span>
@@ -551,7 +661,8 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                     const stCol = columns.find((c:any) => c.id === st.columnId);
                     const stDone = stCol?.title.toUpperCase() === 'LISTO' || stCol?.title.toUpperCase() === 'DONE';
                     
-                    // 🔥 SEGURO EN UI EXTERNA: Checkbox bloqueado si no es tuyo o no tiene dueño
+                    //  SEGURO EN UI EXTERNA: Checkbox bloqueado si no es tuyo o no tiene dueño
+                    
                     const canCompleteThis = isAdmin || (st.assigneeId === currentUser.id);
                     const isCheckboxDisabled = !canEdit || !canCompleteThis;
 
@@ -767,6 +878,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                   <div className="flex items-center mb-6 border-b border-[#30363d] pb-4"><SprintSelector viewedSprint={viewedSprint} sprints={sprints} setSelectedSprintId={setSelectedSprintId} /></div>
                   {!viewedSprint ? (<p className="text-gray-400 text-yellow-500 font-medium text-sm md:text-base">⚠️ No hay ningún Sprint para analizar en este momento.</p>) : (
                     <>
+                      {/* 1. TARJETAS SUPERIORES */}
                       <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                         <div className="bg-[#161a1d] p-4 md:p-5 rounded-2xl border border-[#30363d] shadow-lg relative overflow-hidden">
                           <div className="flex justify-between items-start mb-2"><div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400"><Clock size={18} /></div><span className="text-[10px] md:text-xs font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded-md">{totalEffortHours}h Total</span></div>
@@ -812,6 +924,93 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                           </div>
                         </div>
                       </div>
+
+                      {/* 2. VELOCIDAD DEL SPRINT (Ancho completo arriba de las gráficas) */}
+                      <div className="mt-6 md:mt-8 bg-[#161a1d] p-5 md:p-8 rounded-2xl border border-[#30363d] shadow-lg">
+                        <h3 className="text-base md:text-lg font-bold text-white mb-4 md:mb-6 flex items-center gap-2"><Target className="text-emerald-400" size={18}/> Velocidad del Sprint</h3>
+                        <div className="flex items-end justify-between mb-2"><span className="text-3xl md:text-4xl font-extrabold text-white">{progressPercentage}%</span><span className="text-xs md:text-sm text-gray-400 font-medium">{pendingEffortHours} horas pendientes</span></div>
+                        <div className="w-full h-3 md:h-4 bg-[#22272b] rounded-full overflow-hidden border border-[#30363d]"><div className="h-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-1000 ease-out relative" style={{ width: `${progressPercentage}%` }}>{isViewedSprintActive && <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div>}</div></div>
+                        <div className="mt-6 md:mt-8 space-y-3"><p className="text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Distribución por Estado</p>{sortedColumns.map((col: any) => { const countInSprint = viewedSprintTasks.filter((t:any) => t.columnId === col.id).length; return (<div key={col.id} className="flex items-center justify-between"><div className="flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${col.id === doneColumn?.id ? 'bg-emerald-500' : 'bg-gray-500'}`}></div><span className="text-xs md:text-sm text-gray-300 font-medium">{col.title}</span></div><span className="text-xs md:text-sm font-bold text-white bg-[#22272b] px-2 py-0.5 rounded border border-[#30363d]">{countInSprint} tickets</span></div>)})}</div>
+                      </div>
+
+                      {/* 3. LAS GRÁFICAS ESTILO EXCEL (Dos columnas) */}
+                      {(() => {
+                        // Procesamos la data de esfuerzo individual al vuelo
+                        const esfuerzoIndividualData = space.members.map((m: any) => {
+                          const asignadas = viewedSprintTasks
+                            .filter((t: any) => t.assigneeId === m.userId)
+                            .reduce((sum: number, t: any) => sum + (Number(t.effortHours) || 0), 0);
+                          const completadas = viewedSprintTasks
+                            .filter((t: any) => t.assigneeId === m.userId && t.columnId === doneColumn?.id)
+                            .reduce((sum: number, t: any) => sum + (Number(t.effortHours) || 0), 0);
+                          return {
+                            nombre: m.user.name.split(' ')[0], 
+                            asignadas: asignadas,
+                            completadas: completadas
+                          };
+                        }).filter((data: any) => data.asignadas > 0 || data.completadas > 0);
+
+                        return (
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mt-6 md:mt-8">
+                            
+                            {/* GRÁFICA A: BURNDOWN CHART */}
+                            <div className="bg-[#161a1d] p-5 md:p-8 rounded-2xl border border-[#30363d] shadow-lg">
+                              <h3 className="text-base md:text-lg font-bold text-white mb-6 flex items-center gap-2">
+                                <BarChart2 className="text-blue-400" size={18}/> Burndown Chart
+                              </h3>
+                              {burndownData && burndownData.length > 0 ? (
+                                <div className="h-[300px] w-full">
+                                  <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={burndownData} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
+                                      <CartesianGrid strokeDasharray="3 3" stroke="#30363d" vertical={false} />
+                                      <XAxis dataKey="day" stroke="#888" fontSize={12} tickLine={false} axisLine={false} />
+                                      <YAxis stroke="#888" fontSize={12} tickLine={false} axisLine={false} />
+                                      <Tooltip contentStyle={{ backgroundColor: '#22272b', borderColor: '#30363d', borderRadius: '8px', color: '#fff' }} itemStyle={{ color: '#fff' }} />
+                                      <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                                      <Line type="monotone" dataKey="ideal" name="Horas esperadas" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4, fill: '#3b82f6', strokeWidth: 0 }} activeDot={{ r: 6, fill: '#3b82f6', stroke: '#1d4ed8', strokeWidth: 2 }} />
+                                      <Line type="monotone" dataKey="actual" name="Horas ganadas" stroke="#ef4444" strokeWidth={3} dot={{ r: 4, fill: '#ef4444', strokeWidth: 0 }} activeDot={{ r: 6, fill: '#ef4444', stroke: '#7f1d1d', strokeWidth: 2 }} connectNulls={true} />
+                                    </LineChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              ) : (
+                                <div className="flex flex-col items-center justify-center py-10 text-gray-500">
+                                  <AlertCircle size={32} className="mb-2 opacity-50" />
+                                  <p className="text-sm">Inicia este Sprint para generar el gráfico</p>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* GRÁFICA B: ESFUERZO INDIVIDUAL BARRAS */}
+                            <div className="bg-[#161a1d] p-5 md:p-8 rounded-2xl border border-[#30363d] shadow-lg">
+                              <h3 className="text-base md:text-lg font-bold text-white mb-6 flex items-center gap-2">
+                                <Users className="text-emerald-400" size={18}/> Esfuerzo Individual
+                              </h3>
+                              {esfuerzoIndividualData.length > 0 ? (
+                                <div className="h-[300px] w-full">
+                                  <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={esfuerzoIndividualData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                                      <CartesianGrid strokeDasharray="3 3" stroke="#30363d" vertical={false} />
+                                      <XAxis dataKey="nombre" stroke="#888" fontSize={12} tickLine={false} axisLine={false} />
+                                      <YAxis stroke="#888" fontSize={12} tickLine={false} axisLine={false} />
+                                      <Tooltip cursor={{ fill: '#22272b' }} contentStyle={{ backgroundColor: '#22272b', borderColor: '#30363d', borderRadius: '8px', color: '#fff' }} />
+                                      <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                                      <Bar dataKey="asignadas" name="Horas asignadas" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                                      <Bar dataKey="completadas" name="Horas Done" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                                    </BarChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              ) : (
+                                <div className="flex flex-col items-center justify-center py-10 text-gray-500">
+                                  <Users size={32} className="mb-2 opacity-50" />
+                                  <p className="text-sm">Asigna tareas para ver el esfuerzo</p>
+                                </div>
+                              )}
+                            </div>
+
+                          </div>
+                        );
+                      })()}
+
                     </>
                   )}
                 </div>
@@ -1006,4 +1205,5 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
       </div>
     </>
   );
+}
 }

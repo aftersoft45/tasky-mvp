@@ -23,7 +23,7 @@ const defaultActivities = [
   { id: 3, name: 'Definir arquitectura de la API' },
 ];
 
-// 🔥 Función helper para darle colores únicos a cada rol en la UI
+//  Función helper para darle colores únicos a cada rol en la UI
 const getRoleBadgeStyle = (roleName: string) => {
   switch(roleName) {
     case 'Administrador': return 'bg-red-500/10 text-red-400 border-red-500/20';
@@ -58,7 +58,7 @@ export default function CreateTaskyspaceWizard({ onClose, user }: CreateTaskyspa
   const [editingStatusId, setEditingStatusId] = useState<number | null>(null);
   const [editingStatusName, setEditingStatusName] = useState('');
 
-  // 🔥 SOLUCIÓN: Cambiamos el rol por defecto de 'Miembro' a 'Developer'
+ 
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('Developer'); 
   const [isSearching, setIsSearching] = useState(false);
@@ -391,7 +391,7 @@ export default function CreateTaskyspaceWizard({ onClose, user }: CreateTaskyspa
           <div className="flex gap-3">
             <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setSearchError(''); }} onKeyDown={(e) => { if(e.key === 'Enter') addInvitation(); }} placeholder="Ej. dev@empresa.com" className="flex-1 bg-[#161a1d] border border-[#30363d] rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 transition-all shadow-inner"/>
             
-            {/* 🔥 NUEVO MENÚ DE ROLES ÁGILES 🔥 */}
+            
             <select value={role} onChange={(e) => setRole(e.target.value)} className="bg-[#161a1d] border border-[#30363d] font-bold text-sm text-white rounded-lg px-4 py-2.5 focus:outline-none focus:border-emerald-500 transition-all outline-none">
               <option value="Developer">Developer</option>
               <option value="Project Manager">Project Manager</option>
@@ -417,7 +417,7 @@ export default function CreateTaskyspaceWizard({ onClose, user }: CreateTaskyspa
                 <span className="text-sm text-white font-bold block">{inv.name || 'Usuario Tasky'}</span>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-xs text-gray-400">{inv.email}</span>
-                  {/* 🔥 APLICACIÓN DE COLORES DINÁMICOS POR ROL 🔥 */}
+                  
                   <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${getRoleBadgeStyle(inv.role)}`}>
                     {inv.role}
                   </span>

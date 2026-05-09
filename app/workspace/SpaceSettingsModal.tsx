@@ -124,7 +124,7 @@ export default function SpaceSettingsModal({ spaceId, spaceName, onClose }: Prop
                     onChange={e => setRoleToInvite(e.target.value)} 
                     className="w-full sm:w-auto bg-[#22272b] border border-[#30363d] rounded-lg px-3 py-2.5 text-sm text-white font-medium focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all cursor-pointer"
                   >
-                    {/* 🔥 NUEVOS ROLES ÁGILES 🔥 */}
+                    {/*  NUEVOS ROLES ÁGILES  */}
                     <option value="Developer">Developer</option>
                     <option value="Project Manager">Project Manager</option>
                     <option value="Product Owner">Product Owner</option>
@@ -168,7 +168,7 @@ export default function SpaceSettingsModal({ spaceId, spaceName, onClose }: Prop
                           onChange={(e) => executeAction({ action: 'change_role', targetUserId: m.user.id, newRole: e.target.value }, 'Rol actualizado')}
                           className="bg-[#161a1d] border border-[#30363d] rounded-lg text-xs md:text-sm text-gray-300 py-1.5 px-2 outline-none focus:border-emerald-500 transition-colors cursor-pointer font-medium"
                         >
-                          {/* 🔥 NUEVOS ROLES ÁGILES 🔥 */}
+                          {/*  NUEVOS ROLES ÁGILES  */}
                           <option value="Developer">Developer</option>
                           <option value="Project Manager">Project Manager</option>
                           <option value="Product Owner">Product Owner</option>
