@@ -3,7 +3,7 @@
 // componente que se muestra mientras cargan los datos del perfil público de un usuario
 import React from 'react';
 import { Mail, Calendar } from 'lucide-react';
-
+//
 export default function LoadingProfile() {
   return (
     <div className="min-h-screen bg-[#1d2125] text-[#c9d1d9] font-sans p-6 md:p-10 flex justify-center items-start pt-20">

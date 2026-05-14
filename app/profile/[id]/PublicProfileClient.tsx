@@ -1,6 +1,6 @@
 // app/profile/[id]/PublicProfileClient.tsx
 'use client';
-
+//
 // renderiza el perfil publico del usuario
 // permite mostrar avatar, datos basicos, edicion de perfil
 import React from 'react';

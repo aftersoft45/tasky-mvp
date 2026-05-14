@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "../../../lib/db";
 import PublicProfileClient from "./PublicProfileClient";
 
-
+//
 export default async function PublicProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
   const targetUserId = resolvedParams.id;
