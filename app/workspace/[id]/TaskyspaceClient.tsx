@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Layout, Users, Plus, Search, Target, Trash2, ExternalLink, User as UserIcon, X, ChevronDown, BarChart2, CheckCircle, Clock, ArchiveRestore, AlertCircle, AlertTriangle, ListTodo, Play, Check, Layers, List, Menu, GitCommit } from 'lucide-react';
+import { Layout, Users, Plus, Search, Target, Trash2, ExternalLink, User as UserIcon, X, ChevronDown, BarChart2, CheckCircle, Clock, ArchiveRestore, AlertCircle, AlertTriangle, ListTodo, Play, Check, Layers, List, Menu, GitCommit, Mail } from 'lucide-react';
 import UserProfileMenu from '../../components/UserProfileMenu';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
@@ -13,6 +13,7 @@ import TaskListView from '../../components/TaskListView';
 import EpicModal from '../../components/EpicModal'; 
 
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
 const getRoleBadgeStyle = (roleName: string) => {
   switch(roleName) {
     case 'Administrador': return 'bg-red-500/10 text-red-400 border-red-500/20';
@@ -96,10 +97,16 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
 
+  // --- NUEVO: ESTADOS DE RECHAZO ---
+  const [rejectData, setRejectData] = useState<any | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  // ---------------------------------
+
   const isAdmin = userRole === 'Administrador';
   const isPM = userRole === 'Project Manager';
   const isPO = userRole === 'Product Owner';
   const isTechLead = userRole === 'Tech Lead';
+  const isTester = userRole === 'Tester';
   
   const canEdit = userRole !== 'Solo Visor'; 
   const canManageSprints = isAdmin || isPM; 
@@ -137,14 +144,12 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   
   const progressPercentage = totalEffortHours > 0 ? Math.round((completedEffortHours / totalEffortHours) * 100) : (totalSprintTasksCount === 0 ? 0 : Math.round((doneTasksCount / totalSprintTasksCount) * 100));
 
-  // --- INICIO LÓGICA BURNDOWN CHART ---
   let burndownData: any[] = [];
   if (viewedSprint && viewedSprint.startDate && viewedSprint.endDate) {
     const start = new Date(viewedSprint.startDate);
     const end = new Date(viewedSprint.endDate);
     const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)));
     
-    // Cuánto deberíamos quemar por día idealmente
     const dailyBurnRate = totalEffortHours / totalDays;
     let actualRemaining = totalEffortHours;
     
@@ -152,13 +157,9 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
       const currentDayDate = new Date(start);
       currentDayDate.setDate(start.getDate() + i);
       
-      // Calcular la línea ideal
       const idealRemaining = Math.max(0, totalEffortHours - (dailyBurnRate * i));
-      
-      // Calcular la línea real (restando los tickets que se cerraron ese día o antes)
       const isFutureDate = currentDayDate > new Date();
       
-      // Si el día ya pasó, calculamos; si es futuro, no pintamos la línea real
       let dayActual = null;
       if (!isFutureDate) {
          const closedEffortUpToThisDay = doneTasksList.reduce((sum: number, task: any) => {
@@ -177,27 +178,22 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
       });
     }
   }
-  // --- FIN LÓGICA BURNDOWN CHART ---
 
-  // --- INICIO LÓGICA ESFUERZO INDIVIDUAL (BARRAS) ---
   const esfuerzoIndividualData = space.members.map((m: any) => {
-    // Horas totales asignadas en este sprint a esta persona
     const asignadas = viewedSprintTasks
       .filter((t: any) => t.assigneeId === m.userId)
       .reduce((sum: number, t: any) => sum + (Number(t.effortHours) || 0), 0);
       
-    // Horas que esta persona ya movió a la columna "Listo"
     const completadas = viewedSprintTasks
       .filter((t: any) => t.assigneeId === m.userId && t.columnId === doneColumn?.id)
       .reduce((sum: number, t: any) => sum + (Number(t.effortHours) || 0), 0);
 
     return {
-      nombre: m.user.name.split(' ')[0], // Solo el primer nombre para que quepa bien
+      nombre: m.user.name.split(' ')[0], 
       asignadas: asignadas,
       completadas: completadas
     };
-  }).filter((data: any) => data.asignadas > 0 || data.completadas > 0); // Solo mostramos a los que tienen trabajo
-  // --- FIN LÓGICA ESFUERZO INDIVIDUAL ---
+  }).filter((data: any) => data.asignadas > 0 || data.completadas > 0); 
 
   const blockedTasksCount = viewedSprintTasks.filter((t: any) => t.isBlocked).length;
   const highPriorityCount = viewedSprintTasks.filter((t: any) => t.priority === 'Alta' && t.columnId !== doneColumn?.id).length;
@@ -215,7 +211,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   };
 
   const handleToggleSubtaskStatus = async (subtaskId: string, isCurrentlyDone: boolean) => {
-    //VALIDACIÓN MAESTRA DE SEGURIDAD PARA SUB-TAREAS
     const st = allTasks.find((t:any) => t.id === subtaskId);
     if (st && !isAdmin) {
       if (!st.assigneeId) {
@@ -290,14 +285,12 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     if (!canManageSprints) return alert(" Solo el Project Manager o Administrador pueden iniciar Sprints.");
     if (activeSprint) return alert(" Error: Ya hay un Sprint activo. Debes completarlo antes de iniciar otro.");
     
-    // --- NUEVA LÓGICA: Preguntar la duración del sprint ---
     const diasInput = prompt("¿Cuántos días durará este Sprint? (A partir de hoy)", "5");
-    if (diasInput === null) return; // Si el usuario le da a "Cancelar", abortamos
+    if (diasInput === null) return; 
     
     const dias = parseInt(diasInput, 10);
     if (isNaN(dias) || dias <= 0) return alert(" Por favor ingresa un número válido de días mayor a 0.");
 
-    // Calculamos las fechas exactas
     const startDate = new Date(); 
     const endDate = new Date(); 
     endDate.setDate(startDate.getDate() + dias);
@@ -339,20 +332,46 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     const { source, destination, draggableId } = result;
     if (!destination || (source.droppableId === destination.droppableId && source.index === destination.index)) return;
 
+    let newColumns = JSON.parse(JSON.stringify(columns));
+    let movedTask: any = null;
+    let sourceCol: any = null;
+    let destCol: any = null;
+
+    for (let col of newColumns) {
+      if (col.id === source.droppableId) sourceCol = col;
+      if (col.id === destination.droppableId) destCol = col;
+      const taskIndex = col.tasks.findIndex((t: any) => t.id === draggableId);
+      if (taskIndex > -1 && !movedTask) { movedTask = col.tasks[taskIndex]; }
+    }
+
+    if (!movedTask || !sourceCol || !destCol) return;
+
+    // --- NUEVO: INTERCEPCIÓN DE RECHAZO ---
+    if (destCol.order < sourceCol.order) {
+      const isTesterOrLead = isTester || isTechLead || isAdmin;
+      if (!isTesterOrLead) {
+        alert("❌ Movimiento bloqueado: Solo los Testers o el Tech Lead pueden rechazar y regresar tickets.");
+        return; 
+      }
+      // Guardamos la info temporalmente y abrimos el modal
+      setRejectData({ result, movedTask, destCol });
+      setRejectReason('');
+      return;
+    }
+    // --------------------------------------
+
     if (source.droppableId !== destination.droppableId && destination.droppableId === doneColumn?.id) {
       if (!canApproveDone) {
-        alert("❌ Movimiento bloqueado: Solo el Tech Lead (o Admin) puede validar y pasar tickets a la columna 'Listo'.");
+        alert(" Movimiento bloqueado: Solo el Tech Lead (o Admin) puede validar y pasar tickets a la columna 'Listo'.");
         return;
       }
     }
 
-    let newColumns = JSON.parse(JSON.stringify(columns));
-    let movedTask: any = null;
+    // Removiendo la tarea de su columna original
     for (let col of newColumns) {
       const taskIndex = col.tasks.findIndex((t: any) => t.id === draggableId);
-      if (taskIndex > -1) { movedTask = col.tasks.splice(taskIndex, 1)[0]; break; }
+      if (taskIndex > -1) { col.tasks.splice(taskIndex, 1); break; }
     }
-    if (!movedTask) return;
 
     movedTask.columnId = destination.droppableId;
 
@@ -374,9 +393,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
         movedTask.closedAt = null; 
       }
     }
-
-    const destCol = newColumns.find((c: any) => c.id === destination.droppableId);
-    const sourceCol = newColumns.find((c: any) => c.id === source.droppableId);
 
     const destSprintTasks = destCol.tasks.filter((t: any) => t.sprintId === viewedSprint?.id && !t.parentId).sort((a: any, b: any) => a.order - b.order);
     const destOtherTasks = destCol.tasks.filter((t: any) => t.sprintId !== viewedSprint?.id || t.parentId); 
@@ -408,6 +424,69 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
       } catch (error) { console.error(error); }
     }
   };
+
+  // --- NUEVO: FUNCIÓN PARA CONFIRMAR RECHAZO ---
+  const handleConfirmReject = async () => {
+    if (!rejectData || !rejectReason.trim()) return;
+    const { result, movedTask, destCol } = rejectData;
+    const { source, destination } = result;
+
+    let newColumns = JSON.parse(JSON.stringify(columns));
+    
+    // Generamos la nota roja de rechazo
+    const currentDate = new Date().toLocaleString('es-ES');
+    const rejectionNote = `\n\n🚨 [RECHAZADO POR QA - ${currentDate}]\nMotivo: ${rejectReason}`;
+    
+    let taskToMove: any = null;
+    let sourceCol: any = null;
+    
+    // Lo sacamos de su lugar original y le inyectamos la nota y le quitamos la fecha de cierre
+    for (let col of newColumns) {
+      if (col.id === source.droppableId) sourceCol = col;
+      const taskIndex = col.tasks.findIndex((t: any) => t.id === movedTask.id);
+      if (taskIndex > -1) { 
+        taskToMove = col.tasks.splice(taskIndex, 1)[0]; 
+        taskToMove.notes = (taskToMove.notes || '') + rejectionNote;
+        taskToMove.columnId = destination.droppableId;
+        taskToMove.closedAt = null; 
+        break; 
+      }
+    }
+
+    const destColRef = newColumns.find((c: any) => c.id === destination.droppableId);
+    const destSprintTasks = destColRef.tasks.filter((t: any) => t.sprintId === viewedSprint?.id && !t.parentId).sort((a: any, b: any) => a.order - b.order);
+    const destOtherTasks = destColRef.tasks.filter((t: any) => t.sprintId !== viewedSprint?.id || t.parentId); 
+    destSprintTasks.splice(destination.index, 0, taskToMove);
+    destSprintTasks.forEach((t: any, i: number) => t.order = i);
+    destColRef.tasks = [...destSprintTasks, ...destOtherTasks];
+
+    const sourceSprintTasks = sourceCol.tasks.filter((t: any) => t.sprintId === viewedSprint?.id && !t.parentId).sort((a: any, b: any) => a.order - b.order);
+    const sourceOtherTasks = sourceCol.tasks.filter((t: any) => t.sprintId !== viewedSprint?.id || t.parentId);
+    sourceSprintTasks.forEach((t: any, i: number) => t.order = i);
+    sourceCol.tasks = [...sourceSprintTasks, ...sourceOtherTasks];
+
+    setColumns(newColumns);
+    setRejectData(null); // Ocultar Modal
+
+    try {
+      const tasksToUpdate: any[] = [];
+      destSprintTasks.forEach((t: any) => tasksToUpdate.push({ id: t.id, columnId: destColRef.id, order: t.order }));
+      sourceSprintTasks.forEach((t: any) => tasksToUpdate.push({ id: t.id, columnId: sourceCol.id, order: t.order }));
+      await fetch('/api/tasks/reorder', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tasks: tasksToUpdate }) });
+      
+      // Guardar el rechazo (La Nota) en la base de datos
+      await fetch('/api/tasks', { 
+        method: 'PATCH', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ 
+          taskId: taskToMove.id, 
+          notes: taskToMove.notes,
+          closedAt: null
+        }) 
+      });
+    } catch (error) { console.error(error); }
+  };
+  // ---------------------------------------------
 
   const onDragEndBacklog = async (result: any) => {
     const { source, destination, draggableId } = result;
@@ -489,11 +568,8 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     const targetTask = allTasks.find((t:any) => t.id === taskId);
     const isSubtask = !!targetTask?.parentId;
 
-    // FILTRO DE SEGURIDAD PARA ASIGNACIONES
     if (!isAdmin && !isPM) {
       if (isSubtask) {
-        // En sub-tareas, dejamos que el TechLead asigne a quien sea.
-        // Si es un Developer normal, solo puede auto-asignárselo.
         if (!isTechLead && assigneeId !== currentUser.id && assigneeId !== "") {
            return alert("❌ Solo puedes asignarte la sub-tarea a ti mismo. Deja que el Tech Lead asigne a otros.");
         }
@@ -602,7 +678,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     const isExpanded = expandedTasks[task.id];
     
     const isMyTask = task.assigneeId === currentUser.id;
-    const canDragThisTask = isAdmin || isPM || isTechLead || isMyTask;
+    const canDragThisTask = isAdmin || isPM || isTechLead || isMyTask || isTester;
     const isDragDisabled = !canDragThisTask || !isViewedSprintActive;
 
     return (
@@ -740,6 +816,64 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
         />
       )}
 
+      {/* --- NUEVO: MODAL DE RECHAZO DE TICKET --- */}
+      {rejectData && (
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#1d2125] border border-red-900/50 rounded-2xl w-full max-w-lg shadow-2xl shadow-red-900/20 overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="h-1.5 w-full bg-red-500"></div>
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center text-red-400">
+                  <AlertCircle size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Rechazar Ticket</h3>
+                  <p className="text-sm text-gray-400 truncate max-w-[300px]">{rejectData.movedTask.title}</p>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  ¿Por qué estás regresando este ticket? <span className="text-red-400">*</span>
+                </label>
+                <textarea
+                  autoFocus
+                  rows={4}
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="Ej: El botón no funciona en la vista móvil..."
+                  className="w-full bg-[#161a1d] border border-[#30363d] focus:border-red-500 text-white rounded-xl p-3 outline-none transition-colors resize-none"
+                ></textarea>
+                {rejectData.movedTask.assignee ? (
+                  <p className="text-xs text-yellow-500 mt-2 flex items-center gap-1">
+                    <Mail size={12}/> La razón quedará guardada en las notas para <strong>{rejectData.movedTask.assignee.name}</strong>
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-500 mt-2">La razón quedará en las notas (Nadie asignado).</p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#30363d]">
+                <button 
+                  onClick={() => { setRejectData(null); setRejectReason(''); }}
+                  className="px-4 py-2 rounded-lg text-sm font-bold text-gray-400 hover:text-white hover:bg-[#30363d] transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleConfirmReject}
+                  disabled={!rejectReason.trim()}
+                  className="bg-red-500 hover:bg-red-400 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                >
+                  Confirmar Rechazo
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ----------------------------------------- */}
+
       <div className="flex h-screen bg-[#1d2125] text-[#c9d1d9] font-sans overflow-hidden selection:bg-emerald-500/30 selection:text-emerald-200">
         
         {isMobileMenuOpen && (
@@ -851,7 +985,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                   <div className="flex items-center mb-6 border-b border-[#30363d] pb-4"><SprintSelector viewedSprint={viewedSprint} sprints={sprints} setSelectedSprintId={setSelectedSprintId} /></div>
                   {!viewedSprint ? (<p className="text-gray-400 text-yellow-500 font-medium text-sm md:text-base">⚠️ No hay ningún Sprint para analizar en este momento.</p>) : (
                     <>
-                      {/* 1. TARJETAS SUPERIORES */}
                       <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                         <div className="bg-[#161a1d] p-4 md:p-5 rounded-2xl border border-[#30363d] shadow-lg relative overflow-hidden">
                           <div className="flex justify-between items-start mb-2"><div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400"><Clock size={18} /></div><span className="text-[10px] md:text-xs font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded-md">{totalEffortHours}h Total</span></div>
@@ -871,7 +1004,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                         </div>
                       </div>
 
-                      {/* 2. VELOCIDAD DEL SPRINT (Ancho completo arriba de las gráficas) */}
                       <div className="mt-6 md:mt-8 bg-[#161a1d] p-5 md:p-8 rounded-2xl border border-[#30363d] shadow-lg">
                         <h3 className="text-base md:text-lg font-bold text-white mb-4 md:mb-6 flex items-center gap-2"><Target className="text-emerald-400" size={18}/> Velocidad del Sprint</h3>
                         <div className="flex items-end justify-between mb-2"><span className="text-3xl md:text-4xl font-extrabold text-white">{progressPercentage}%</span><span className="text-xs md:text-sm text-gray-400 font-medium">{pendingEffortHours} horas pendientes</span></div>
@@ -879,9 +1011,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                         <div className="mt-6 md:mt-8 space-y-3"><p className="text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Distribución por Estado</p>{sortedColumns.map((col: any) => { const countInSprint = viewedSprintTasks.filter((t:any) => t.columnId === col.id).length; return (<div key={col.id} className="flex items-center justify-between"><div className="flex items-center gap-2"><div className={`w-2 h-2 rounded-full ${col.id === doneColumn?.id ? 'bg-emerald-500' : 'bg-gray-500'}`}></div><span className="text-xs md:text-sm text-gray-300 font-medium">{col.title}</span></div><span className="text-xs md:text-sm font-bold text-white bg-[#22272b] px-2 py-0.5 rounded border border-[#30363d]">{countInSprint} tickets</span></div>)})}</div>
                       </div>
 
-                      {/* 3. LAS GRÁFICAS ESTILO EXCEL (Dos columnas) */}
                       {(() => {
-                        // Procesamos la data de esfuerzo individual al vuelo
                         const esfuerzoIndividualData = space.members.map((m: any) => {
                           const asignadas = viewedSprintTasks
                             .filter((t: any) => t.assigneeId === m.userId)
@@ -899,7 +1029,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                         return (
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mt-6 md:mt-8">
                             
-                            {/* GRÁFICA A: BURNDOWN CHART */}
                             <div className="bg-[#161a1d] p-5 md:p-8 rounded-2xl border border-[#30363d] shadow-lg">
                               <h3 className="text-base md:text-lg font-bold text-white mb-6 flex items-center gap-2">
                                 <BarChart2 className="text-blue-400" size={18}/> Burndown Chart
@@ -926,7 +1055,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                               )}
                             </div>
 
-                            {/* GRÁFICA B: ESFUERZO INDIVIDUAL BARRAS */}
                             <div className="bg-[#161a1d] p-5 md:p-8 rounded-2xl border border-[#30363d] shadow-lg">
                               <h3 className="text-base md:text-lg font-bold text-white mb-6 flex items-center gap-2">
                                 <Users className="text-emerald-400" size={18}/> Esfuerzo Individual
@@ -984,7 +1112,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
 
                 <DragDropContext onDragEnd={onDragEndBacklog}>
                   {sprints.filter((s:any) => showCompletedSprints ? true : s.status !== 'COMPLETED').map((sprint: any) => {
-                    const tasksInSprint = topLevelTasks.filter((t: any) => t.sprintId === sprint.id);                    return (
+                    const tasksInSprint = topLevelTasks.filter((t: any) => t.sprintId === sprint.id);                   return (
                       <div key={sprint.id} className={`mb-6 md:mb-8 bg-[#161a1d] border rounded-xl overflow-hidden ${sprint.status === 'ACTIVE' ? 'border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'border-[#30363d]'} ${sprint.status === 'COMPLETED' ? 'opacity-60 grayscale' : ''}`}>
                         <div className="bg-[#1d2125] p-3 md:p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-[#30363d]">
                           <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full sm:w-auto">
