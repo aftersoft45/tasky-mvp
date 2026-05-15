@@ -29,7 +29,6 @@ export default function TaskModal({ task, allTasks = [], columns = [], onClose, 
   const canBlock = isAdmin || currentUserRole === 'Tester';
   const canAddSubtasks = isAdmin || currentUserRole === 'Tech Lead' || currentUserRole === 'Developer' || currentUserRole === 'DevOps';
   
- 
   const canAssignSubtasks = currentUserRole !== 'Solo Visor';
 
   const calculateRemainingDays = () => {
@@ -41,6 +40,10 @@ export default function TaskModal({ task, allTasks = [], columns = [], onClose, 
 
   const remainingDays = calculateRemainingDays();
   const lastUpdated = task.updatedAt ? new Date(task.updatedAt).toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'No registrada';
+
+  // --- NUEVO: DETECTOR DE RECHAZO ---
+  const hasRejectionAlert = formData.notes?.includes('🚨 [RECHAZADO');
+  // ----------------------------------
 
   const handleChange = (e: any) => {
     if (readOnly) return;
@@ -83,6 +86,19 @@ export default function TaskModal({ task, allTasks = [], columns = [], onClose, 
           </div>
           <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-white hover:bg-[#2c333b] rounded transition-colors"><X size={20} /></button>
         </div>
+
+        {/* --- NUEVO: BANNER DE RECHAZO --- */}
+        {hasRejectionAlert && (
+          <div className="mx-6 mt-6 p-4 bg-red-950/40 border border-red-500/50 rounded-xl animate-in fade-in slide-in-from-top-2">
+            <h4 className="text-red-400 font-bold flex items-center gap-2 mb-1">
+              <AlertCircle size={18} /> ¡ATENCIÓN! TICKET RECHAZADO POR QA
+            </h4>
+            <p className="text-sm text-red-300/80 ml-6">
+              El equipo de calidad ha devuelto esta tarea. Revisa la sección inferior de <b>Notas</b> para leer el motivo exacto y corrige el problema antes de volver a pasar la tarjeta a Listo.
+            </p>
+          </div>
+        )}
+        {/* -------------------------------- */}
 
         <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -182,7 +198,6 @@ export default function TaskModal({ task, allTasks = [], columns = [], onClose, 
                         const stCol = columns.find((c:any) => c.id === st.columnId);
                         const isStDone = stCol?.title.toUpperCase() === 'LISTO' || stCol?.title.toUpperCase() === 'DONE';
                         
-                        // RESTRICCIÓN DE COMPLETADO: 
                         const canCompleteThis = isAdmin || (st.assigneeId === currentUserId);
                         const isCheckboxDisabled = readOnly || !canCompleteThis;
 
@@ -201,7 +216,6 @@ export default function TaskModal({ task, allTasks = [], columns = [], onClose, 
                             </div>
                             
                             <div className="flex items-center gap-2 shrink-0">
-                              
                               <select 
                                 value={st.assigneeId || ""} 
                                 onChange={(e) => { e.stopPropagation(); onAssignSubtask && onAssignSubtask(st.id, e.target.value); }}
@@ -256,15 +270,24 @@ export default function TaskModal({ task, allTasks = [], columns = [], onClose, 
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-blue-400/70 uppercase mb-2 flex items-center gap-1.5">📝 Notas / Comentarios</label>
+                {/* --- NUEVO: ESTILO DINÁMICO DE LAS NOTAS --- */}
+                <label className={`block text-xs font-bold uppercase mb-2 flex items-center gap-1.5 ${hasRejectionAlert ? 'text-red-400' : 'text-blue-400/70'}`}>
+                  📝 Notas / Comentarios
+                </label>
                 <textarea 
                   name="notes" 
                   value={formData.notes} 
                   onChange={handleChange} 
                   disabled={readOnly} 
                   placeholder="Agrega enlaces, comentarios o información adicional del avance..." 
-                  className={`${inputClass} h-24 custom-scrollbar resize-none ${readOnly ? '' : '!bg-[#161a1d] !border-blue-900/30 !text-blue-100/90 focus:!border-blue-500'}`} 
+                  className={`${inputClass} h-32 custom-scrollbar resize-none ${
+                    readOnly ? '' : 
+                    hasRejectionAlert 
+                      ? '!bg-[#1d1616] !border-red-900/50 !text-red-100 focus:!border-red-500' 
+                      : '!bg-[#161a1d] !border-blue-900/30 !text-blue-100/90 focus:!border-blue-500'
+                  }`} 
                 />
+                {/* ------------------------------------------ */}
               </div>
             </div>
           </div>
