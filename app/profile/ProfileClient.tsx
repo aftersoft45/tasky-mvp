@@ -1,10 +1,9 @@
-// app/profile/ProfileClient.tsx
 'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Target, User, Shield, LayoutGrid, Camera, Check, AlertCircle, ArrowLeft, Upload, X } from 'lucide-react';
+import { Target, User, Shield, LayoutGrid, Camera, Check, AlertCircle, ArrowLeft, Upload, X, ListTodo, Clock, CheckCircle, Layout } from 'lucide-react';
 import UserProfileMenu from '../components/UserProfileMenu';
 
 interface ProfileClientProps {
@@ -13,7 +12,7 @@ interface ProfileClientProps {
   isGoogleUser: boolean;
 }
 
-// Generamos avatares predeterminados usando DiceBear
+// Avatares predefinidos de Tasky aqui luis puedes incluir los que quieras
 const PREDEFINED_AVATARS = [
   "https://api.dicebear.com/7.x/bottts/svg?seed=Tasky1&backgroundColor=059669",
   "https://api.dicebear.com/7.x/bottts/svg?seed=Tasky2&backgroundColor=0ea5e9",
@@ -25,11 +24,11 @@ const PREDEFINED_AVATARS = [
 
 export default function ProfileClient({ user, workspaces, isGoogleUser }: ProfileClientProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'cuenta' | 'seguridad' | 'espacios'>('cuenta');
+  const [activeTab, setActiveTab] = useState<'cuenta' | 'seguridad' | 'espacios' | 'actividades'>('cuenta');
   
   // Estados de formularios
   const [name, setName] = useState(user.name || '');
-  const [image, setImage] = useState(user.image || ''); 
+  const [image, setImage] = useState(user.image || ''); // Estado para la imagen
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -42,10 +41,20 @@ export default function ProfileClient({ user, workspaces, isGoogleUser }: Profil
 
   const initial = name ? name.charAt(0).toUpperCase() : 'U';
 
-  // Manejar la subida de un archivo local Base64
+  // Lógica de Métricas (Igual que en el Perfil Público)
+  const tasks = user.assignedTasks || [];
+  const stats = {
+    todo: tasks.filter((t: any) => ['POR HACER', 'BACKLOG'].includes(t.column?.title?.toUpperCase())).length,
+    doing: tasks.filter((t: any) => ['EN CURSO', 'PROGRESS', 'EN REVISIÓN', 'TESTING'].includes(t.column?.title?.toUpperCase())).length,
+    done: tasks.filter((t: any) => ['LISTO', 'DONE'].includes(t.column?.title?.toUpperCase())).length,
+    blocked: tasks.filter((t: any) => t.isBlocked).length
+  };
+
+  // Manejar la subida de un archivo local 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Limitar a 2MB
       if (file.size > 2 * 1024 * 1024) {
         alert("La imagen es muy grande. Máximo 2MB.");
         return;
@@ -53,7 +62,7 @@ export default function ProfileClient({ user, workspaces, isGoogleUser }: Profil
       const reader = new FileReader();
       reader.onloadend = () => {
         setImage(reader.result as string);
-        setIsAvatarModalOpen(false); 
+        setIsAvatarModalOpen(false); // Cerramos el modal tras seleccionar
       };
       reader.readAsDataURL(file);
     }
@@ -81,7 +90,7 @@ export default function ProfileClient({ user, workspaces, isGoogleUser }: Profil
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           name: activeTab === 'cuenta' ? name : undefined,
-          image: activeTab === 'cuenta' ? image : undefined, 
+          image: activeTab === 'cuenta' ? image : undefined, // Enviamos la imagen
           currentPassword: activeTab === 'seguridad' ? currentPassword : undefined,
           newPassword: activeTab === 'seguridad' ? newPassword : undefined,
         })
@@ -118,7 +127,7 @@ export default function ProfileClient({ user, workspaces, isGoogleUser }: Profil
             </div>
 
             <div className="p-6 space-y-6">
-              {/* subir imagen local */}
+              {/* Subir imagen local */}
               <div>
                 <p className="text-sm font-medium text-gray-400 mb-3">Subir tu propia imagen (Max 2MB)</p>
                 <label className="flex items-center justify-center gap-2 w-full bg-[#161a1d] border-2 border-dashed border-[#30363d] hover:border-emerald-500 text-gray-300 hover:text-emerald-400 p-4 rounded-xl cursor-pointer transition-colors group">
@@ -151,6 +160,7 @@ export default function ProfileClient({ user, workspaces, isGoogleUser }: Profil
         </div>
       )}
 
+      {/* NAVBAR */}
       <header className="h-16 flex items-center justify-between px-6 border-b border-[#30363d] bg-[#161a1d] shrink-0 sticky top-0 z-40">
         <div className="flex items-center gap-4">
           <Link href="/dashboard" className="text-gray-400 hover:text-emerald-400 transition-colors mr-2">
@@ -161,12 +171,14 @@ export default function ProfileClient({ user, workspaces, isGoogleUser }: Profil
           </div>
           <span className="font-bold text-white text-lg">Ajustes de Perfil</span>
         </div>
+        {/* Le pasamos el user con la imagen actualizada visualmente en tiempo real si cambió */}
         <UserProfileMenu user={{...user, image: image}} />
       </header>
 
       {/* CONTENIDO PRINCIPAL */}
       <div className="max-w-6xl mx-auto px-4 py-8 md:py-12 flex flex-col md:flex-row gap-8">
         
+        {/* SIDEBAR DE PESTAÑAS */}
         <aside className="w-full md:w-64 shrink-0 space-y-1">
           <button onClick={() => {setActiveTab('cuenta'); setMessage({text:'', type:''})}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${activeTab === 'cuenta' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'text-gray-400 hover:bg-[#161a1d] hover:text-white border border-transparent'}`}>
             <User size={18} /> Mi Cuenta
@@ -177,9 +189,12 @@ export default function ProfileClient({ user, workspaces, isGoogleUser }: Profil
           <button onClick={() => {setActiveTab('espacios'); setMessage({text:'', type:''})}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${activeTab === 'espacios' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'text-gray-400 hover:bg-[#161a1d] hover:text-white border border-transparent'}`}>
             <LayoutGrid size={18} /> Mis Proyectos
           </button>
+          <button onClick={() => {setActiveTab('actividades'); setMessage({text:'', type:''})}} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${activeTab === 'actividades' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'text-gray-400 hover:bg-[#161a1d] hover:text-white border border-transparent'}`}>
+            <ListTodo size={18} /> Mis Actividades
+          </button>
         </aside>
 
-        {/* formularios  */}
+        {/* ÁREA DE FORMULARIOS */}
         <main className="flex-1">
           <div className="bg-[#161a1d] border border-[#30363d] rounded-2xl overflow-hidden shadow-2xl relative">
             <div className="h-2 w-full bg-gradient-to-r from-emerald-400 to-cyan-500"></div>
@@ -192,7 +207,7 @@ export default function ProfileClient({ user, workspaces, isGoogleUser }: Profil
                 </div>
               )}
 
-              {/* cuenta */}
+              {/* PESTAÑA: CUENTA */}
               {activeTab === 'cuenta' && (
                 <form onSubmit={handleUpdate} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <div>
@@ -200,12 +215,13 @@ export default function ProfileClient({ user, workspaces, isGoogleUser }: Profil
                     <p className="text-gray-400 text-sm">Administra tu información personal y cómo te ven los demás.</p>
                   </div>
 
+                  {/* SECCIÓN DEL AVATAR */}
                   <div className="flex items-center gap-6 pb-6 border-b border-[#30363d]">
                     <div 
                       onClick={() => setIsAvatarModalOpen(true)}
                       className="relative group cursor-pointer w-24 h-24 rounded-full border-2 border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.3)] overflow-hidden bg-[#1d2125]"
                     >
-                    
+                      {/* Si hay imagen, la mostramos; si no, la inicial */}
                       {image ? (
                         <img src={image} alt="Avatar" className="w-full h-full object-cover group-hover:opacity-40 transition-opacity" />
                       ) : (
@@ -214,7 +230,7 @@ export default function ProfileClient({ user, workspaces, isGoogleUser }: Profil
                         </div>
                       )}
                       
-            
+                      {/* Overlay de la cámara al hacer hover */}
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
                         <Camera size={28} className="text-white drop-shadow-md" />
                       </div>
@@ -243,7 +259,7 @@ export default function ProfileClient({ user, workspaces, isGoogleUser }: Profil
                 </form>
               )}
 
-              {/*SEGURIDAD */}
+              {/* PESTAÑA: SEGURIDAD */}
               {activeTab === 'seguridad' && (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <div className="mb-8">
@@ -279,7 +295,7 @@ export default function ProfileClient({ user, workspaces, isGoogleUser }: Profil
                 </div>
               )}
 
-              {/* ESPACIOS */}
+              {/* PESTAÑA: ESPACIOS */}
               {activeTab === 'espacios' && (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <div className="mb-6 flex justify-between items-end">
@@ -318,6 +334,78 @@ export default function ProfileClient({ user, workspaces, isGoogleUser }: Profil
                       <Link href="/workspace" className="text-emerald-400 font-medium hover:underline mt-2 inline-block">Ir al directorio para crear uno</Link>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* NUEVA PESTAÑA: ACTIVIDADES */}
+              {activeTab === 'actividades' && (
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="mb-6 flex justify-between items-end">
+                    <div>
+                      <h2 className="text-2xl font-bold text-white mb-1">Mis Actividades</h2>
+                      <p className="text-gray-400 text-sm">Gestiona tus tareas asignadas en todos tus proyectos.</p>
+                    </div>
+                  </div>
+
+                  {/* Tarjetas de Resumen */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+                    <div className="bg-[#1d2125] p-4 rounded-xl border border-[#30363d]">
+                      <div className="flex justify-between items-start mb-2"><ListTodo className="text-blue-400" size={20} /><span className="text-2xl font-bold text-white">{stats.todo}</span></div>
+                      <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Por Hacer</p>
+                    </div>
+                    <div className="bg-[#1d2125] p-4 rounded-xl border border-[#30363d]">
+                      <div className="flex justify-between items-start mb-2"><Clock className="text-yellow-400" size={20} /><span className="text-2xl font-bold text-white">{stats.doing}</span></div>
+                      <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">En Curso</p>
+                    </div>
+                    <div className="bg-[#1d2125] p-4 rounded-xl border border-[#30363d]">
+                      <div className="flex justify-between items-start mb-2"><CheckCircle className="text-emerald-400" size={20} /><span className="text-2xl font-bold text-white">{stats.done}</span></div>
+                      <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Completados</p>
+                    </div>
+                    <div className="bg-[#1d2125] p-4 rounded-xl border border-[#30363d]">
+                      <div className="flex justify-between items-start mb-2"><AlertCircle className="text-red-400" size={20} /><span className="text-2xl font-bold text-white">{stats.blocked}</span></div>
+                      <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Bloqueados</p>
+                    </div>
+                  </div>
+
+                  {/* Lista de Actividades */}
+                  <div className="bg-[#1d2125] rounded-xl border border-[#30363d] overflow-hidden">
+                    <div className="p-4 md:p-5 border-b border-[#30363d] flex justify-between items-center bg-[#1d2125]">
+                      <h3 className="text-sm md:text-base font-bold text-white">Tickets Asignados Actualmente</h3>
+                      <span className="text-xs md:text-sm text-gray-500 bg-[#22272b] px-2 py-1 rounded-md border border-[#30363d]">{tasks.length} totales</span>
+                    </div>
+                    <div className="divide-y divide-[#30363d]">
+                      {tasks.length === 0 ? (
+                        <p className="p-10 text-center text-gray-500 text-sm">No tienes tickets asignados en este momento.</p>
+                      ) : (
+                        tasks.map((task: any) => (
+                          <div key={task.id} className="p-4 hover:bg-[#22272b] transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4 group">
+                            <div className="flex flex-col gap-1.5 overflow-hidden">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[9px] md:text-[10px] px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-purple-400 font-bold uppercase tracking-wider">{task.taskyspace?.name || 'Proyecto'}</span>
+                                {task.isBlocked && <span className="text-[9px] px-2 py-0.5 rounded bg-red-500/10 border border-red-500/20 text-red-400 font-bold uppercase">Bloqueado</span>}
+                              </div>
+                              <h4 className="text-sm md:text-base text-white font-medium group-hover:text-emerald-400 transition-colors truncate">{task.title}</h4>
+                              <div className="flex flex-wrap items-center gap-3 md:gap-4 text-xs text-gray-500">
+                                <span className="flex items-center gap-1"><Layout size={12}/> Columna: {task.column?.title || 'Sin columna'}</span>
+                                {task.sprint && <span className="text-cyan-500/70">🏃‍♂️ Sprint: {task.sprint.name}</span>}
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-3 shrink-0">
+                               <span className="text-xs font-bold text-gray-400 bg-[#161a1d] px-2.5 py-1.5 rounded-lg border border-[#30363d] flex items-center gap-1"><Clock size={12}/> {task.effortHours || 0}h</span>
+                               <div className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold uppercase ${
+                                 task.column?.title?.toUpperCase() === 'LISTO' || task.column?.title?.toUpperCase() === 'DONE' 
+                                 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                                 : 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400'
+                               }`}>
+                                 {task.column?.title?.toUpperCase() === 'LISTO' || task.column?.title?.toUpperCase() === 'DONE' ? 'Terminado' : 'Pendiente'}
+                               </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
