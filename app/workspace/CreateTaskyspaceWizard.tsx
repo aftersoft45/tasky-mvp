@@ -74,6 +74,10 @@ export default function CreateTaskyspaceWizard({ onClose, user }: CreateTaskyspa
     { title: '¡Lanzamiento!', desc: 'Tu Taskyspace está listo para despegar.' },
   ];
 
+  /*
+  Bloquea el boton "siguiente" si el  espacio es privado pero el administrador
+  dejo el campo de la contrase;a vacio
+  */
   const canGoNext = () => {
     if (currentStep === 3) {
       if (!formData.name.trim()) return false; 
@@ -86,6 +90,10 @@ export default function CreateTaskyspaceWizard({ onClose, user }: CreateTaskyspa
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
 
   const handleFinish = async () => {
+    /*
+    solucion de HU-10: Se asigna la contrase;a al objeto, unicamente si es privado
+    en caso contrario, se envia un null 
+    */
     setIsLoading(true); 
     try {
       const payload = {
@@ -232,7 +240,7 @@ export default function CreateTaskyspaceWizard({ onClose, user }: CreateTaskyspa
           <p className="text-xs text-gray-400 leading-tight">Acceso estrictamente restringido. Ideal para datos sensibles, clientes o código NDA.</p>
         </button>
       </div>
-
+      {/* Solucion a HU-10: si admin selecciona la opcion de privado, se despliega el input para ingresar la contrase;a del taskyspace*/}
       {formData.privacy === 'Privado' && (
         <div className="animate-in fade-in zoom-in-95 duration-200 bg-[#161a1d] p-4 rounded-xl border border-emerald-500/30">
           <label className="block text-xs font-bold text-emerald-500 uppercase tracking-wider mb-2 flex items-center gap-2"><Lock size={14}/> Contraseña de bóveda <span className="text-red-400">*</span></label>
