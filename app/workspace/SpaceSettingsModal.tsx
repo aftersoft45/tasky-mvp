@@ -17,7 +17,7 @@ export default function SpaceSettingsModal({ spaceId, spaceName, onClose }: Prop
   const [members, setMembers] = useState<any[]>([]);
   const [pending, setPending] = useState<any[]>([]);
   const [emailToInvite, setEmailToInvite] = useState('');
-  const [roleToInvite, setRoleToInvite] = useState('Developer'); // 🔥 Rol por defecto actualizado
+  const [roleToInvite, setRoleToInvite] = useState('Developer'); 
   const [loading, setLoading] = useState(true);
 
   // Cargar datos al abrir el modal
@@ -50,7 +50,7 @@ export default function SpaceSettingsModal({ spaceId, spaceName, onClose }: Prop
         onClose();
         router.refresh();
       } else {
-        loadData(); // Recargamos la lista
+        loadData(); 
       }
     } else {
       alert(await res.text());
@@ -177,6 +177,7 @@ export default function SpaceSettingsModal({ spaceId, spaceName, onClose }: Prop
                           <option value="DevOps">DevOps</option>
                           <option value="Administrador">Administrador</option>
                         </select>
+                        {/* Botón de expulsar usuario no se puede eliminar el mismo */}
                         <button 
                           onClick={() => { if(confirm(`¿Estás seguro de expulsar a ${m.user.name}?`)) executeAction({ action: 'remove_member', targetUserId: m.user.id }, 'Expulsado'); }} 
                           className="text-gray-500 hover:text-red-400 bg-[#161a1d] border border-[#30363d] hover:border-red-900 p-1.5 rounded-lg transition-colors flex items-center justify-center"
@@ -213,7 +214,7 @@ export default function SpaceSettingsModal({ spaceId, spaceName, onClose }: Prop
               )}
             </div>
           ) : (
-            // ZONA DE PELIGRO
+            // ZONA DE PELIGRO - Solo opción de eliminar el espacio completamente NO SE PUEDE DAR VUELTA ATRAS
             <div className="bg-red-950/10 border border-red-900/50 rounded-2xl p-6 text-center mt-4">
               <div className="w-16 h-16 bg-red-950/50 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-900/50">
                 <AlertTriangle className="w-8 h-8 text-red-500" />
@@ -226,7 +227,7 @@ export default function SpaceSettingsModal({ spaceId, spaceName, onClose }: Prop
                 onClick={() => { if(prompt(`Escribe "${spaceName}" para confirmar la eliminación de todo el proyecto:`) === spaceName) executeAction({ action: 'delete_space' }, 'Eliminado'); }} 
                 className="w-full sm:w-auto bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-8 rounded-xl shadow-[0_0_20px_rgba(220,38,38,0.2)] transition-all hover:-translate-y-0.5"
               >
-                Sí, eliminar permanentemente
+                Sí, eliminar permanentemente    
               </button>
             </div>
           )}
