@@ -43,7 +43,7 @@ export default function LoginPage() {
     }
   };
 
-  // Manejador para el login con Google
+//Login con google
   const handleGoogleSignIn = async () => {
     setError('');
     setIsLoading(true); // Encendemos el overlay
