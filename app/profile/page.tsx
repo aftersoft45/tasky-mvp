@@ -17,6 +17,7 @@ export default async function ProfilePage() {
           column: true,
           sprint: true,
           taskyspace: true,
+          workLogs: true 
         }
       }
     }

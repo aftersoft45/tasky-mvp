@@ -36,7 +36,8 @@ export default async function TaskyspacePage({ params }: { params: Promise<{ id:
           tasks: {
             orderBy: { createdAt: 'asc' },
             include: {
-              assignee: { select: { id: true, name: true, image: true } }
+              assignee: { select: { id: true, name: true, image: true } },
+              workLogs: true // --- NUEVO: Traer el historial de tiempo trabajado ---
             }
           }
         }

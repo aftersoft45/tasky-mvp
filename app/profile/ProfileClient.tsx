@@ -392,7 +392,19 @@ export default function ProfileClient({ user, workspaces, isGoogleUser }: Profil
                             </div>
                             
                             <div className="flex items-center gap-3 shrink-0">
-                               <span className="text-xs font-bold text-gray-400 bg-[#161a1d] px-2.5 py-1.5 rounded-lg border border-[#30363d] flex items-center gap-1"><Clock size={12}/> {task.effortHours || 0}h</span>
+                               {/* --- NUEVO: MUESTRA EL TIEMPO TRABAJADO VS PLANEADO --- */}
+                               {(() => {
+                                 const workedHours = (task.workLogs || []).reduce((acc: number, curr: any) => acc + curr.hours, 0);
+                                 const isOvertime = workedHours > (task.effortHours || 0);
+                                 
+                                 return (
+                                   <span className={`text-xs font-bold px-2.5 py-1.5 rounded-lg border flex items-center gap-1.5 ${isOvertime ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-[#161a1d] border-[#30363d] text-gray-400'}`}>
+                                     <Clock size={12}/> 
+                                     <span>{workedHours > 0 ? `${workedHours.toFixed(1)}h` : '0h'} / {task.effortHours || 0}h</span>
+                                   </span>
+                                 );
+                               })()}
+                               {/* -------------------------------------------------------- */}
                                <div className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold uppercase ${
                                  task.column?.title?.toUpperCase() === 'LISTO' || task.column?.title?.toUpperCase() === 'DONE' 
                                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
