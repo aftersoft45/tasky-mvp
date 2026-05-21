@@ -6,7 +6,6 @@ datasource db {
   provider = "postgresql"
 }
 
-
 // Sprints (Iteraciones de trabajo)    //Luis 21
 model Sprint {
   id           String     @id @default(cuid())
@@ -21,7 +20,6 @@ model Sprint {
 
   tasks        Task[]
  
-
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 }
@@ -89,6 +87,11 @@ model User {
   assignedTasks       Task[]       @relation("TaskAssignee") 
   tasksSupported      Task[]       @relation("TaskSupport")  
   tasksAuthored       Task[]       @relation("TaskAuthor")   
+
+  // --- NUEVO: LAS RELACIONES QUE PIDE PRISMA ---
+  workLogs            WorkLog[]
+  notifications       Notification[]
+  // ---------------------------------------------
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -163,10 +166,15 @@ model Task {
   order              Int           @default(0) 
   isCompleted        Boolean       @default(false)
   
+  // SISTEMA DE TIME TRACKING [HU-20]
+  isTimerRunning     Boolean   @default(false)
+  timerStartedAt     DateTime?
+  workLogs           WorkLog[]
+  
 //NUEVOS CAMPOS DEL EXCEL (BACKLOG SPRINT) 
   type               String?       @default("Task") 
   priority           String?       @default("Media") 
-  effortHours        Float?        @default(0)       
+  effortHours        Float?        @default(0)        
   dueDate            DateTime?     
   isBlocked          Boolean       @default(false)   
   dependencies       String?                         
@@ -226,3 +234,36 @@ model Invitation {
   
   createdAt      DateTime   @default(now())
 }
+
+// REGISTRO DE HORAS DIARIAS (Time Tracking) [HU-20]
+model WorkLog {
+  id        String   @id @default(cuid())
+  date      DateTime @db.Date // Guardará solo el día (Ej: 2026-05-15)
+  hours     Float    @default(0)
+
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taskId, userId, date]) // Solo 1 registro por usuario/tarea al día
+}
+
+// --- NUEVO: SISTEMA DE NOTIFICACIONES GENERALES ---
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String   // El usuario que recibe la alerta
+  title     String
+  message   String   @db.Text
+  type      String   // Ej: "REJECTION", "MENTION", "ALERT"
+  link      String?  // Hacia dónde te manda el clic (Ej: /workspace/123)
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+// --------------------------------------------------

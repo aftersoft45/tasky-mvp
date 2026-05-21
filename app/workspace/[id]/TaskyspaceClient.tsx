@@ -97,10 +97,8 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
 
-  // --- NUEVO: ESTADOS DE RECHAZO ---
   const [rejectData, setRejectData] = useState<any | null>(null);
   const [rejectReason, setRejectReason] = useState('');
-  // ---------------------------------
 
   const isAdmin = userRole === 'Administrador';
   const isPM = userRole === 'Project Manager';
@@ -139,11 +137,18 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   const doneTasksCount = doneTasksList.length;
 
   const totalEffortHours = viewedSprintTasks.reduce((sum: number, task: any) => sum + (Number(task.effortHours) || 0), 0);
-  const completedEffortHours = doneTasksList.reduce((sum: number, task: any) => sum + (Number(task.effortHours) || 0), 0);
-  const pendingEffortHours = totalEffortHours - completedEffortHours;
   
-  const progressPercentage = totalEffortHours > 0 ? Math.round((completedEffortHours / totalEffortHours) * 100) : (totalSprintTasksCount === 0 ? 0 : Math.round((doneTasksCount / totalSprintTasksCount) * 100));
+  // --- NUEVO: TOTAL DE HORAS REALES TRABAJADAS ---
+  const completedEffortHours = viewedSprintTasks.reduce((sum: number, task: any) => {
+    const logs = task.workLogs || [];
+    const taskTotalWorked = logs.reduce((acc: number, curr: any) => acc + curr.hours, 0);
+    return sum + taskTotalWorked;
+  }, 0);
+  const pendingEffortHours = Math.max(0, totalEffortHours - completedEffortHours);
+  const progressPercentage = totalEffortHours > 0 ? Math.round((completedEffortHours / totalEffortHours) * 100) : 0;
+  // ----------------------------------------------
 
+  // --- LÓGICA DE BURNDOWN CHART BLINDADA ---
   let burndownData: any[] = [];
   if (viewedSprint && viewedSprint.startDate && viewedSprint.endDate) {
     const start = new Date(viewedSprint.startDate);
@@ -151,59 +156,58 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)));
     
     const dailyBurnRate = totalEffortHours / totalDays;
-    let actualRemaining = totalEffortHours;
     
     for (let i = 0; i <= totalDays; i++) {
       const currentDayDate = new Date(start);
       currentDayDate.setDate(start.getDate() + i);
+      // Creamos una comparación de fecha simple (YYYY-MM-DD)
+      const currentDayStr = currentDayDate.toISOString().split('T')[0];
       
       const idealRemaining = Math.max(0, totalEffortHours - (dailyBurnRate * i));
-      const isFutureDate = currentDayDate > new Date();
       
-      let dayActual = null;
-      if (!isFutureDate) {
-         const closedEffortUpToThisDay = doneTasksList.reduce((sum: number, task: any) => {
-            if (task.closedAt && new Date(task.closedAt) <= currentDayDate) {
-              return sum + (Number(task.effortHours) || 0);
-            }
-            return sum;
-         }, 0);
-         dayActual = totalEffortHours - closedEffortUpToThisDay;
-      }
-
+      // Sumamos TODAS las horas de TODOS los logs que sean de este día o anteriores
+      const realWorkedHoursUpToThisDay = viewedSprintTasks.reduce((sum: number, task: any) => {
+         const logs = task.workLogs || [];
+         const hoursUpToDay = logs
+           .filter((log: any) => {
+              const logDateStr = new Date(log.date).toISOString().split('T')[0];
+              return logDateStr <= currentDayStr;
+           })
+           .reduce((acc: number, curr: any) => acc + curr.hours, 0);
+         return sum + hoursUpToDay;
+      }, 0);
+      
       burndownData.push({
         day: `Día ${i}`,
         ideal: Math.round(idealRemaining * 10) / 10,
-        actual: dayActual !== null ? Math.round(dayActual * 10) / 10 : null,
+        actual: Math.max(0, Math.round((totalEffortHours - realWorkedHoursUpToThisDay) * 10) / 10),
       });
     }
   }
 
+  // --- NUEVA LÓGICA: ESFUERZO BARRAS CON TIEMPO REAL ---
   const esfuerzoIndividualData = space.members.map((m: any) => {
     const asignadas = viewedSprintTasks
       .filter((t: any) => t.assigneeId === m.userId)
       .reduce((sum: number, t: any) => sum + (Number(t.effortHours) || 0), 0);
       
-    const completadas = viewedSprintTasks
-      .filter((t: any) => t.assigneeId === m.userId && t.columnId === doneColumn?.id)
-      .reduce((sum: number, t: any) => sum + (Number(t.effortHours) || 0), 0);
+    const completadas = viewedSprintTasks.reduce((sum: number, t: any) => {
+      const userLogs = (t.workLogs || [])
+        .filter((log: any) => log.userId === m.userId)
+        .reduce((acc: number, curr: any) => acc + curr.hours, 0);
+      return sum + userLogs;
+    }, 0);
 
     return {
       nombre: m.user.name.split(' ')[0], 
       asignadas: asignadas,
-      completadas: completadas
+      completadas: Math.round(completadas * 10) / 10
     };
   }).filter((data: any) => data.asignadas > 0 || data.completadas > 0); 
+  // -----------------------------------------------------
 
   const blockedTasksCount = viewedSprintTasks.filter((t: any) => t.isBlocked).length;
   const highPriorityCount = viewedSprintTasks.filter((t: any) => t.priority === 'Alta' && t.columnId !== doneColumn?.id).length;
-
-  const memberEffort: Record<string, number> = {};
-  viewedSprintTasks.forEach((task: any) => {
-    if (task.assigneeId && task.columnId !== doneColumn?.id) { 
-      memberEffort[task.assigneeId] = (memberEffort[task.assigneeId] || 0) + (Number(task.effortHours) || 0);
-    }
-  });
 
   const toggleSubtasks = (taskId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -281,19 +285,28 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     router.refresh();
   };
 
-  const handleStartSprint = async (sprintId: string) => {
+const handleStartSprint = async (sprintId: string) => {
     if (!canManageSprints) return alert(" Solo el Project Manager o Administrador pueden iniciar Sprints.");
     if (activeSprint) return alert(" Error: Ya hay un Sprint activo. Debes completarlo antes de iniciar otro.");
     
-    const diasInput = prompt("¿Cuántos días durará este Sprint? (A partir de hoy)", "5");
-    if (diasInput === null) return; 
-    
-    const dias = parseInt(diasInput, 10);
-    if (isNaN(dias) || dias <= 0) return alert(" Por favor ingresa un número válido de días mayor a 0.");
+    // --- MODIFICACIÓN: Solicitamos ambas fechas ---
+    const startDateStr = prompt("¿En qué fecha inicia el Sprint? (Formato: YYYY-MM-DD)", new Date().toISOString().split('T')[0]);
+    if (!startDateStr) return; 
 
-    const startDate = new Date(); 
-    const endDate = new Date(); 
-    endDate.setDate(startDate.getDate() + dias);
+    const endDateStr = prompt("¿En qué fecha termina el Sprint? (Formato: YYYY-MM-DD)", "");
+    if (!endDateStr) return;
+
+    const startDate = new Date(startDateStr);
+    const endDate = new Date(endDateStr);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return alert(" Formato de fecha no válido. Usa YYYY-MM-DD.");
+    }
+
+    if (endDate <= startDate) {
+      return alert(" La fecha de fin debe ser posterior a la de inicio.");
+    }
+    // ----------------------------------------------
     
     const res = await fetch('/api/sprints', { 
       method: 'PATCH', 
@@ -346,28 +359,24 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
 
     if (!movedTask || !sourceCol || !destCol) return;
 
-    // --- NUEVO: INTERCEPCIÓN DE RECHAZO ---
     if (destCol.order < sourceCol.order) {
       const isTesterOrLead = isTester || isTechLead || isAdmin;
       if (!isTesterOrLead) {
         alert("❌ Movimiento bloqueado: Solo los Testers o el Tech Lead pueden rechazar y regresar tickets.");
         return; 
       }
-      // Guardamos la info temporalmente y abrimos el modal
       setRejectData({ result, movedTask, destCol });
       setRejectReason('');
       return;
     }
-    // --------------------------------------
 
     if (source.droppableId !== destination.droppableId && destination.droppableId === doneColumn?.id) {
       if (!canApproveDone) {
-        alert(" Movimiento bloqueado: Solo el Tech Lead (o Admin) puede validar y pasar tickets a la columna 'Listo'.");
+        alert("❌ Movimiento bloqueado: Solo el Tech Lead (o Admin) puede validar y pasar tickets a la columna 'Listo'.");
         return;
       }
     }
 
-    // Removiendo la tarea de su columna original
     for (let col of newColumns) {
       const taskIndex = col.tasks.findIndex((t: any) => t.id === draggableId);
       if (taskIndex > -1) { col.tasks.splice(taskIndex, 1); break; }
@@ -425,7 +434,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     }
   };
 
-  // --- NUEVO: FUNCIÓN PARA CONFIRMAR RECHAZO ---
   const handleConfirmReject = async () => {
     if (!rejectData || !rejectReason.trim()) return;
     const { result, movedTask, destCol } = rejectData;
@@ -433,14 +441,12 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
 
     let newColumns = JSON.parse(JSON.stringify(columns));
     
-    // Generamos la nota roja de rechazo
     const currentDate = new Date().toLocaleString('es-ES');
     const rejectionNote = `\n\n🚨 [RECHAZADO POR QA - ${currentDate}]\nMotivo: ${rejectReason}`;
     
     let taskToMove: any = null;
     let sourceCol: any = null;
     
-    // Lo sacamos de su lugar original y le inyectamos la nota y le quitamos la fecha de cierre
     for (let col of newColumns) {
       if (col.id === source.droppableId) sourceCol = col;
       const taskIndex = col.tasks.findIndex((t: any) => t.id === movedTask.id);
@@ -466,7 +472,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     sourceCol.tasks = [...sourceSprintTasks, ...sourceOtherTasks];
 
     setColumns(newColumns);
-    setRejectData(null); // Ocultar Modal
+    setRejectData(null); 
 
     try {
       const tasksToUpdate: any[] = [];
@@ -474,7 +480,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
       sourceSprintTasks.forEach((t: any) => tasksToUpdate.push({ id: t.id, columnId: sourceCol.id, order: t.order }));
       await fetch('/api/tasks/reorder', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tasks: tasksToUpdate }) });
       
-      // Guardar el rechazo (La Nota) en la base de datos
       await fetch('/api/tasks', { 
         method: 'PATCH', 
         headers: { 'Content-Type': 'application/json' }, 
@@ -486,7 +491,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
       });
     } catch (error) { console.error(error); }
   };
-  // ---------------------------------------------
 
   const onDragEndBacklog = async (result: any) => {
     const { source, destination, draggableId } = result;
@@ -681,6 +685,60 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     const canDragThisTask = isAdmin || isPM || isTechLead || isMyTask || isTester;
     const isDragDisabled = !canDragThisTask || !isViewedSprintActive;
 
+    const isRunning = task.isTimerRunning;
+
+    // --- NUEVO: MOTOR DEL CRONÓMETRO EN VIVO ---
+    const [liveTimeMs, setLiveTimeMs] = useState(0);
+
+    useEffect(() => {
+      // 1. Calculamos las horas que ya estaban guardadas en la BD (convertidas a milisegundos)
+      const baseMs = (task.workLogs || []).reduce((acc: number, log: any) => acc + (log.hours * 3600000), 0);
+      
+      // 2. Si el timer está corriendo, le sumamos el tiempo en vivo cada segundo
+      if (isRunning && task.timerStartedAt) {
+        const start = new Date(task.timerStartedAt).getTime();
+        setLiveTimeMs(baseMs + (Date.now() - start));
+        
+        const interval = setInterval(() => {
+          setLiveTimeMs(baseMs + (Date.now() - start));
+        }, 1000);
+        return () => clearInterval(interval);
+      } else {
+        setLiveTimeMs(baseMs); // Si está pausado, solo mostramos lo guardado
+      }
+    }, [isRunning, task.timerStartedAt, task.workLogs]);
+
+    // Función para dar formato al texto del cronómetro
+    const formatTime = (ms: number) => {
+      const totalSeconds = Math.floor(ms / 1000);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      if (hours > 0) return `${hours}h ${minutes}m`;
+      if (minutes > 0) return `${minutes}m ${seconds}s`;
+      return `${seconds}s`;
+    };
+    // ------------------------------------------
+
+    const toggleTimer = async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!isMyTask) return alert("Solo el responsable de la tarea puede iniciar su tiempo.");
+      
+      const newAction = isRunning ? "PAUSE" : "START";
+      
+      setColumns((prev: any) => prev.map((col: any) => col.id === colId ? { ...col, tasks: col.tasks.map((t: any) => t.id === task.id ? { ...t, isTimerRunning: !isRunning, timerStartedAt: isRunning ? null : new Date().toISOString() } : t) } : col));
+      
+      const res = await fetch('/api/tasks/timer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId: task.id, action: newAction })
+      });
+      
+      if (res.ok) {
+        router.refresh(); 
+      }
+    };
+
     return (
       <Draggable draggableId={task.id} index={index} isDragDisabled={isDragDisabled}>
         {(provided, snapshot) => {
@@ -688,7 +746,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
           return (
             <div 
               ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} onClick={() => setEditingTask(task)} 
-              className={`bg-[#22272b] p-3 rounded-lg border shadow-sm group transition-all relative ${snapshot.isDragging ? 'border-emerald-500 shadow-emerald-500/20 shadow-xl scale-105 rotate-2 cursor-grabbing' : 'border-[#30363d] hover:border-emerald-500/50 cursor-pointer'} ${task.isBlocked ? 'border-red-900/50 bg-red-950/10' : ''} ${isDragDisabled ? 'opacity-80 hover:opacity-100 hover:border-[#30363d] cursor-pointer' : ''}`}
+              className={`bg-[#22272b] p-3 rounded-lg border shadow-sm group transition-all relative ${snapshot.isDragging ? 'border-emerald-500 shadow-emerald-500/20 shadow-xl scale-105 rotate-2 cursor-grabbing' : 'border-[#30363d] hover:border-emerald-500/50 cursor-pointer'} ${task.isBlocked ? 'border-red-900/50 bg-red-950/10' : ''} ${isDragDisabled ? 'opacity-80 hover:opacity-100 hover:border-[#30363d] cursor-pointer' : ''} ${isRunning ? 'border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : ''}`}
               style={draggableStyle}
             >
               {isAdmin && isViewedSprintActive && <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(colId, task.id); }} className="absolute top-2 right-2 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity z-10"><Trash2 size={14} /></button>}
@@ -710,22 +768,13 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                   {subtasks.map((st: any) => {
                     const stCol = columns.find((c:any) => c.id === st.columnId);
                     const stDone = stCol?.title.toUpperCase() === 'LISTO' || stCol?.title.toUpperCase() === 'DONE';
-                    
-                    
                     const canCompleteThis = isAdmin || (st.assigneeId === currentUser.id);
                     const isCheckboxDisabled = !canEdit || !canCompleteThis;
 
                     return (
                       <div key={st.id} className="flex items-center justify-between bg-[#22272b] p-1.5 rounded border border-[#30363d] hover:border-blue-500/50 transition-colors">
                         <div className="flex items-center gap-2 overflow-hidden">
-                          <input
-                            type="checkbox"
-                            checked={stDone}
-                            onChange={(e) => { e.stopPropagation(); handleToggleSubtaskStatus(st.id, stDone); }}
-                            disabled={isCheckboxDisabled}
-                            title={!st.assigneeId ? "Debes asignarla primero" : (!canCompleteThis ? "Asignada a otro miembro" : "")}
-                            className={`w-3.5 h-3.5 rounded accent-emerald-500 shrink-0 ${isCheckboxDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                          />
+                          <input type="checkbox" checked={stDone} onChange={(e) => { e.stopPropagation(); handleToggleSubtaskStatus(st.id, stDone); }} disabled={isCheckboxDisabled} className={`w-3.5 h-3.5 rounded accent-emerald-500 shrink-0 ${isCheckboxDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`} />
                           <span onClick={() => setEditingTask(st)} className={`text-xs truncate pr-2 cursor-pointer hover:text-blue-400 ${stDone ? 'text-gray-500 line-through' : 'text-gray-300'}`}>{st.title}</span>
                         </div>
                       </div>
@@ -743,7 +792,23 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                     </button>
                   )}
                 </div>
+                
                 <div className="flex items-center gap-2">
+                  {/* --- NUEVO: RENDERIZADO DEL CRONÓMETRO --- */}
+                  {(liveTimeMs > 0 || isMyTask) && (
+                    <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border ${isRunning ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400' : 'bg-[#1a1e23] border-[#30363d] text-gray-400'}`}>
+                      {isMyTask && (
+                        <button onClick={toggleTimer} title={isRunning ? "Pausar" : "Iniciar"} className="hover:text-white transition-colors">
+                          {isRunning ? <span className="animate-pulse">⏹</span> : <Play size={10} className="fill-current" />}
+                        </button>
+                      )}
+                      <span className="text-[10px] font-mono font-bold w-[45px] text-right">
+                        {formatTime(liveTimeMs)}
+                      </span>
+                    </div>
+                  )}
+                  {/* ---------------------------------------- */}
+
                   {isAdmin || isPM ? (
                     <button onClick={(e) => { e.stopPropagation(); setActiveDropdown(isDropdownActive ? null : task.id); }} className="flex items-center gap-1 text-xs text-gray-400 hover:text-emerald-400 transition-colors"><span className="max-w-[70px] truncate font-medium">{task.assignee ? task.assignee.name.split(' ')[0] : 'Sin asignar'}</span><ChevronDown size={12} className={`opacity-50 transition-transform ${isDropdownActive ? 'rotate-180' : ''}`} /></button>
                   ) : (<span className="text-xs text-gray-500 max-w-[70px] truncate">{task.assignee ? task.assignee.name.split(' ')[0] : 'Sin asignar'}</span>)}
@@ -816,7 +881,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
         />
       )}
 
-      {/* --- NUEVO: MODAL DE RECHAZO DE TICKET --- */}
+      {/* MODAL DE RECHAZO DE TICKET */}
       {rejectData && (
         <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-[#1d2125] border border-red-900/50 rounded-2xl w-full max-w-lg shadow-2xl shadow-red-900/20 overflow-hidden animate-in zoom-in-95 duration-200">
@@ -872,7 +937,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
           </div>
         </div>
       )}
-      {/* ----------------------------------------- */}
 
       <div className="flex h-screen bg-[#1d2125] text-[#c9d1d9] font-sans overflow-hidden selection:bg-emerald-500/30 selection:text-emerald-200">
         
@@ -1012,20 +1076,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                       </div>
 
                       {(() => {
-                        const esfuerzoIndividualData = space.members.map((m: any) => {
-                          const asignadas = viewedSprintTasks
-                            .filter((t: any) => t.assigneeId === m.userId)
-                            .reduce((sum: number, t: any) => sum + (Number(t.effortHours) || 0), 0);
-                          const completadas = viewedSprintTasks
-                            .filter((t: any) => t.assigneeId === m.userId && t.columnId === doneColumn?.id)
-                            .reduce((sum: number, t: any) => sum + (Number(t.effortHours) || 0), 0);
-                          return {
-                            nombre: m.user.name.split(' ')[0], 
-                            asignadas: asignadas,
-                            completadas: completadas
-                          };
-                        }).filter((data: any) => data.asignadas > 0 || data.completadas > 0);
-
                         return (
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mt-6 md:mt-8">
                             
@@ -1043,7 +1093,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
                                       <Tooltip contentStyle={{ backgroundColor: '#22272b', borderColor: '#30363d', borderRadius: '8px', color: '#fff' }} itemStyle={{ color: '#fff' }} />
                                       <Legend wrapperStyle={{ paddingTop: '10px' }} />
                                       <Line type="monotone" dataKey="ideal" name="Horas esperadas" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4, fill: '#3b82f6', strokeWidth: 0 }} activeDot={{ r: 6, fill: '#3b82f6', stroke: '#1d4ed8', strokeWidth: 2 }} />
-                                      <Line type="monotone" dataKey="actual" name="Horas ganadas" stroke="#ef4444" strokeWidth={3} dot={{ r: 4, fill: '#ef4444', strokeWidth: 0 }} activeDot={{ r: 6, fill: '#ef4444', stroke: '#7f1d1d', strokeWidth: 2 }} connectNulls={true} />
+                                      <Line type="monotone" dataKey="actual" name="Horas trabajadas" stroke="#ef4444" strokeWidth={3} dot={{ r: 4, fill: '#ef4444', strokeWidth: 0 }} activeDot={{ r: 6, fill: '#ef4444', stroke: '#7f1d1d', strokeWidth: 2 }} connectNulls={true} />
                                     </LineChart>
                                   </ResponsiveContainer>
                                 </div>
