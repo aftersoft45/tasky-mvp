@@ -41,9 +41,7 @@ export default function TaskModal({ task, allTasks = [], columns = [], onClose, 
   const remainingDays = calculateRemainingDays();
   const lastUpdated = task.updatedAt ? new Date(task.updatedAt).toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'No registrada';
 
-  // --- NUEVO: DETECTOR DE RECHAZO ---
   const hasRejectionAlert = formData.notes?.includes('🚨 [RECHAZADO');
-  // ----------------------------------
 
   const handleChange = (e: any) => {
     if (readOnly) return;
@@ -87,7 +85,6 @@ export default function TaskModal({ task, allTasks = [], columns = [], onClose, 
           <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-white hover:bg-[#2c333b] rounded transition-colors"><X size={20} /></button>
         </div>
 
-        {/* --- NUEVO: BANNER DE RECHAZO --- */}
         {hasRejectionAlert && (
           <div className="mx-6 mt-6 p-4 bg-red-950/40 border border-red-500/50 rounded-xl animate-in fade-in slide-in-from-top-2">
             <h4 className="text-red-400 font-bold flex items-center gap-2 mb-1">
@@ -98,7 +95,6 @@ export default function TaskModal({ task, allTasks = [], columns = [], onClose, 
             </p>
           </div>
         )}
-        {/* -------------------------------- */}
 
         <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -212,7 +208,8 @@ export default function TaskModal({ task, allTasks = [], columns = [], onClose, 
                                 title={!st.assigneeId ? "Debes asignarla primero" : (!canCompleteThis ? "Asignada a otro miembro" : "")}
                                 className={`w-4 h-4 rounded accent-emerald-500 shrink-0 ${isCheckboxDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                               />
-                              <span onClick={() => setEditingTask(st)} className={`text-sm truncate ${isStDone ? 'text-emerald-400 line-through opacity-70' : 'text-gray-300'} cursor-pointer hover:text-blue-400`}>{st.title}</span>
+                              {/* --- CORRECCIÓN: Se quitó el onClick con setEditingTask --- */}
+                              <span className={`text-sm truncate ${isStDone ? 'text-emerald-400 line-through opacity-70' : 'text-gray-300'}`}>{st.title}</span>
                             </div>
                             
                             <div className="flex items-center gap-2 shrink-0">
@@ -270,7 +267,6 @@ export default function TaskModal({ task, allTasks = [], columns = [], onClose, 
               </div>
 
               <div>
-                {/* --- NUEVO: ESTILO DINÁMICO DE LAS NOTAS --- */}
                 <label className={`block text-xs font-bold uppercase mb-2 flex items-center gap-1.5 ${hasRejectionAlert ? 'text-red-400' : 'text-blue-400/70'}`}>
                   📝 Notas / Comentarios
                 </label>
@@ -287,7 +283,6 @@ export default function TaskModal({ task, allTasks = [], columns = [], onClose, 
                       : '!bg-[#161a1d] !border-blue-900/30 !text-blue-100/90 focus:!border-blue-500'
                   }`} 
                 />
-                {/* ------------------------------------------ */}
               </div>
             </div>
           </div>
