@@ -106,7 +106,7 @@ export default function TaskModal({ task, allTasks = [], columns = [], onClose, 
               
               <div>
                 <label className="block text-xs font-bold text-purple-400 uppercase mb-1.5 flex items-center gap-1.5">
-                  🚀 Épica {!canEditCriteria && !readOnly && <Lock size={10} className="text-gray-500" title="Solo PO" />}
+                  🚀 Épica {!canEditCriteria && !readOnly && <Lock size={10} className="text-gray-500" />}
                 </label>
                 <select name="epicId" value={formData.epicId} onChange={handleChange} disabled={readOnly || !!task.parentId || !canEditCriteria} className={`${inputClass} ${!canEditCriteria ? 'opacity-70 cursor-not-allowed' : 'border-purple-500/30 focus:border-purple-500 bg-purple-500/5'}`}>
                   <option value="">Sin Épica</option>
