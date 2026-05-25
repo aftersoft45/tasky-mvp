@@ -50,6 +50,8 @@ export default function RegisterPage() {
           <p className="text-sm text-gray-500 mt-1">Únete a Tasky y domina tus proyectos</p>
         </div>
 
+
+        
         <button
           onClick={() => signIn('google', { callbackUrl: '/' })}
           className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-100 text-gray-900 font-semibold py-2.5 px-4 rounded-lg transition-colors mb-6"
