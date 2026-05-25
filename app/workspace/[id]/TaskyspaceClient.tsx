@@ -1323,4 +1323,4 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     </>
   );
 }
-}
+
