@@ -138,7 +138,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
 
   const totalEffortHours = viewedSprintTasks.reduce((sum: number, task: any) => sum + (Number(task.effortHours) || 0), 0);
   
-  // --- NUEVO: TOTAL DE HORAS REALES TRABAJADAS ---
   const completedEffortHours = viewedSprintTasks.reduce((sum: number, task: any) => {
     const logs = task.workLogs || [];
     const taskTotalWorked = logs.reduce((acc: number, curr: any) => acc + curr.hours, 0);
@@ -146,7 +145,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
   }, 0);
   const pendingEffortHours = Math.max(0, totalEffortHours - completedEffortHours);
   const progressPercentage = totalEffortHours > 0 ? Math.round((completedEffortHours / totalEffortHours) * 100) : 0;
-  // ----------------------------------------------
 
   // --- LÓGICA DE BURNDOWN CHART BLINDADA ---
   let burndownData: any[] = [];
@@ -160,12 +158,10 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     for (let i = 0; i <= totalDays; i++) {
       const currentDayDate = new Date(start);
       currentDayDate.setDate(start.getDate() + i);
-      // Creamos una comparación de fecha simple (YYYY-MM-DD)
       const currentDayStr = currentDayDate.toISOString().split('T')[0];
       
       const idealRemaining = Math.max(0, totalEffortHours - (dailyBurnRate * i));
       
-      // Sumamos TODAS las horas de TODOS los logs que sean de este día o anteriores
       const realWorkedHoursUpToThisDay = viewedSprintTasks.reduce((sum: number, task: any) => {
          const logs = task.workLogs || [];
          const hoursUpToDay = logs
@@ -185,7 +181,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     }
   }
 
-  // --- NUEVA LÓGICA: ESFUERZO BARRAS CON TIEMPO REAL ---
   const esfuerzoIndividualData = space.members.map((m: any) => {
     const asignadas = viewedSprintTasks
       .filter((t: any) => t.assigneeId === m.userId)
@@ -204,7 +199,6 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
       completadas: Math.round(completadas * 10) / 10
     };
   }).filter((data: any) => data.asignadas > 0 || data.completadas > 0); 
-  // -----------------------------------------------------
 
   const blockedTasksCount = viewedSprintTasks.filter((t: any) => t.isBlocked).length;
   const highPriorityCount = viewedSprintTasks.filter((t: any) => t.priority === 'Alta' && t.columnId !== doneColumn?.id).length;
@@ -285,33 +279,38 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     router.refresh();
   };
 
-const handleStartSprint = async (sprintId: string) => {
-    if (!canManageSprints) return alert(" Solo el Project Manager o Administrador pueden iniciar Sprints.");
-    if (activeSprint) return alert(" Error: Ya hay un Sprint activo. Debes completarlo antes de iniciar otro.");
+  const handleStartSprint = async (sprintId: string) => {
+    if (!canManageSprints) return alert("❌ Solo el Project Manager o Administrador pueden iniciar Sprints.");
+    if (activeSprint) return alert("⚠️ Error: Ya hay un Sprint activo. Debes completarlo antes de iniciar otro.");
     
-    // --- MODIFICACIÓN: Solicitamos ambas fechas ---
-    const startDateStr = prompt("¿En qué fecha inicia el Sprint? (Formato: YYYY-MM-DD)", new Date().toISOString().split('T')[0]);
+    const today = new Date().toISOString().split('T')[0];
+    
+    const startDateStr = prompt("¿En qué fecha inicia el Sprint? (YYYY-MM-DD)", today);
     if (!startDateStr) return; 
 
-    const endDateStr = prompt("¿En qué fecha termina el Sprint? (Formato: YYYY-MM-DD)", "");
+    const endDateStr = prompt("¿En qué fecha termina el Sprint? (YYYY-MM-DD)", "");
     if (!endDateStr) return;
 
     const startDate = new Date(startDateStr);
     const endDate = new Date(endDateStr);
 
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      return alert(" Formato de fecha no válido. Usa YYYY-MM-DD.");
+      return alert("❌ Formato de fecha no válido. Asegúrate de usar YYYY-MM-DD.");
     }
 
     if (endDate <= startDate) {
-      return alert(" La fecha de fin debe ser posterior a la de inicio.");
+      return alert("❌ La fecha de fin debe ser posterior a la de inicio.");
     }
-    // ----------------------------------------------
     
     const res = await fetch('/api/sprints', { 
       method: 'PATCH', 
       headers: { 'Content-Type': 'application/json' }, 
-      body: JSON.stringify({ sprintId, status: 'ACTIVE', startDate, endDate }) 
+      body: JSON.stringify({ 
+        sprintId, 
+        status: 'ACTIVE', 
+        startDate: startDate.toISOString(), 
+        endDate: endDate.toISOString() 
+      }) 
     });
     
     if (res.ok) { 
@@ -687,14 +686,11 @@ const handleStartSprint = async (sprintId: string) => {
 
     const isRunning = task.isTimerRunning;
 
-    // --- NUEVO: MOTOR DEL CRONÓMETRO EN VIVO ---
     const [liveTimeMs, setLiveTimeMs] = useState(0);
 
     useEffect(() => {
-      // 1. Calculamos las horas que ya estaban guardadas en la BD (convertidas a milisegundos)
       const baseMs = (task.workLogs || []).reduce((acc: number, log: any) => acc + (log.hours * 3600000), 0);
       
-      // 2. Si el timer está corriendo, le sumamos el tiempo en vivo cada segundo
       if (isRunning && task.timerStartedAt) {
         const start = new Date(task.timerStartedAt).getTime();
         setLiveTimeMs(baseMs + (Date.now() - start));
@@ -704,11 +700,10 @@ const handleStartSprint = async (sprintId: string) => {
         }, 1000);
         return () => clearInterval(interval);
       } else {
-        setLiveTimeMs(baseMs); // Si está pausado, solo mostramos lo guardado
+        setLiveTimeMs(baseMs); 
       }
     }, [isRunning, task.timerStartedAt, task.workLogs]);
 
-    // Función para dar formato al texto del cronómetro
     const formatTime = (ms: number) => {
       const totalSeconds = Math.floor(ms / 1000);
       const hours = Math.floor(totalSeconds / 3600);
@@ -718,7 +713,6 @@ const handleStartSprint = async (sprintId: string) => {
       if (minutes > 0) return `${minutes}m ${seconds}s`;
       return `${seconds}s`;
     };
-    // ------------------------------------------
 
     const toggleTimer = async (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -759,7 +753,8 @@ const handleStartSprint = async (sprintId: string) => {
                     </span>
                   )}
                   <span title={`Prioridad: ${task.priority || 'Media'}`} className={`ml-auto w-2 h-2 rounded-full shrink-0 ${task.priority === 'Alta' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]' : task.priority === 'Baja' ? 'bg-blue-500' : 'bg-yellow-500'}`}></span>
-                  {task.isBlocked && <AlertCircle size={14} className="text-red-400 shrink-0" title="¡Bloqueado!" />}
+                  {/* --- CORRECCIÓN: Se movió el title al contenedor --- */}
+                  {task.isBlocked && <span title="¡Bloqueado!"><AlertCircle size={14} className="text-red-400 shrink-0" /></span>}
               </div>
               <p className="text-sm text-white mb-3 pr-2 leading-relaxed select-none">{task.title}</p>
               
@@ -794,7 +789,6 @@ const handleStartSprint = async (sprintId: string) => {
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  {/* --- NUEVO: RENDERIZADO DEL CRONÓMETRO --- */}
                   {(liveTimeMs > 0 || isMyTask) && (
                     <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border ${isRunning ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400' : 'bg-[#1a1e23] border-[#30363d] text-gray-400'}`}>
                       {isMyTask && (
@@ -807,7 +801,6 @@ const handleStartSprint = async (sprintId: string) => {
                       </span>
                     </div>
                   )}
-                  {/* ---------------------------------------- */}
 
                   {isAdmin || isPM ? (
                     <button onClick={(e) => { e.stopPropagation(); setActiveDropdown(isDropdownActive ? null : task.id); }} className="flex items-center gap-1 text-xs text-gray-400 hover:text-emerald-400 transition-colors"><span className="max-w-[70px] truncate font-medium">{task.assignee ? task.assignee.name.split(' ')[0] : 'Sin asignar'}</span><ChevronDown size={12} className={`opacity-50 transition-transform ${isDropdownActive ? 'rotate-180' : ''}`} /></button>
@@ -1040,14 +1033,14 @@ const handleStartSprint = async (sprintId: string) => {
               </div>
             </div>
           )}
-{/*Inicio de función para poder visualizar resumen del sprint*/}
+
           {activeView === 'resumen' && (
             <div className="flex-1 overflow-y-auto p-4 md:p-8 relative z-10 custom-scrollbar animate-in fade-in duration-300">
               <div className="max-w-5xl mx-auto space-y-6 md:space-y-8">
                 <div>
                   <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight mb-4">Resumen Ágil del Sprint</h1>
                   <div className="flex items-center mb-6 border-b border-[#30363d] pb-4"><SprintSelector viewedSprint={viewedSprint} sprints={sprints} setSelectedSprintId={setSelectedSprintId} /></div>
-                  {!viewedSprint ? (<p className="text-gray-400 text-yellow-500 font-medium text-sm md:text-base">No hay ningún Sprint para analizar en este momento.</p>) : (
+                  {!viewedSprint ? (<p className="text-gray-400 text-yellow-500 font-medium text-sm md:text-base">⚠️ No hay ningún Sprint para analizar en este momento.</p>) : (
                     <>
                       <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                         <div className="bg-[#161a1d] p-4 md:p-5 rounded-2xl border border-[#30363d] shadow-lg relative overflow-hidden">
@@ -1329,4 +1322,5 @@ const handleStartSprint = async (sprintId: string) => {
       </div>
     </>
   );
+}
 }
