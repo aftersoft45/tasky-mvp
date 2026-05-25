@@ -78,7 +78,7 @@ export default function TaskModal({ task, allTasks = [], columns = [], onClose, 
             <div className="flex items-center gap-3">
               {task.parentId && <span className="bg-blue-500/20 text-blue-400 text-[10px] px-2 py-1 rounded flex items-center gap-1 font-bold shrink-0"><GitCommit size={12}/> SUB-TAREA</span>}
               <input type="text" name="title" value={formData.title} onChange={handleChange} disabled={readOnly} className={`w-full bg-transparent text-xl font-bold text-white outline-none border-b transition-colors pb-1 ${readOnly ? 'border-transparent cursor-not-allowed' : 'border-transparent hover:border-[#30363d] focus:border-emerald-500'}`}/>
-              {readOnly && <span className="bg-blue-500/20 text-blue-400 text-xs px-2 py-1 rounded flex items-center gap-1 font-bold shrink-0"><Lock size={12}/> Solo lectura</span>}
+              {readOnly && <span className="bg-blue-500/20 text-blue-400 text-xs px-2 py-1 rounded flex items-center gap-1 font-bold shrink-0"><span title="Solo lectura"><Lock size={12}/></span> Solo lectura</span>}
             </div>
             <div className="flex gap-4 mt-2 text-xs text-gray-500">
               <span className="flex items-center gap-1"><RefreshCcw size={12}/> Última act: {lastUpdated}</span>
@@ -106,7 +106,7 @@ export default function TaskModal({ task, allTasks = [], columns = [], onClose, 
               
               <div>
                 <label className="block text-xs font-bold text-purple-400 uppercase mb-1.5 flex items-center gap-1.5">
-                  🚀 Épica {!canEditCriteria && !readOnly && <Lock size={10} className="text-gray-500" />}
+                  🚀 Épica {!canEditCriteria && !readOnly && <span title="Solo PO" className="text-gray-500"><Lock size={10} /></span>}
                 </label>
                 <select name="epicId" value={formData.epicId} onChange={handleChange} disabled={readOnly || !!task.parentId || !canEditCriteria} className={`${inputClass} ${!canEditCriteria ? 'opacity-70 cursor-not-allowed' : 'border-purple-500/30 focus:border-purple-500 bg-purple-500/5'}`}>
                   <option value="">Sin Épica</option>
@@ -129,14 +129,14 @@ export default function TaskModal({ task, allTasks = [], columns = [], onClose, 
 
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5 flex items-center gap-1.5">
-                  <Clock size={14}/> Esfuerzo (Hrs) {!canEditPlanning && !readOnly && <Lock size={10} className="text-gray-500" title="Solo PM" />}
+                  <Clock size={14}/> Esfuerzo (Hrs) {!canEditPlanning && !readOnly && <span title="Solo PM" className="text-gray-500"><Lock size={10} /></span>}
                 </label>
                 <select name="effortHours" value={formData.effortHours} onChange={handleChange} disabled={readOnly || !canEditPlanning} className={`${inputClass} ${!canEditPlanning ? 'opacity-70 cursor-not-allowed' : ''}`}>{effortOptions.map(hrs => <option key={hrs} value={hrs}>{hrs} horas</option>)}</select>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5 flex items-center gap-1.5">
-                  <Calendar size={14}/> Fecha Objetivo {!canEditPlanning && !readOnly && <Lock size={10} className="text-gray-500" title="Solo PM" />}
+                  <Calendar size={14}/> Fecha Objetivo {!canEditPlanning && !readOnly && <span title="Solo PM" className="text-gray-500"><Lock size={10} /></span>}
                 </label>
                 <input type="date" name="dueDate" value={formData.dueDate} onChange={handleChange} disabled={readOnly || !canEditPlanning} className={`${inputClass} [color-scheme:dark] ${!canEditPlanning ? 'opacity-70 cursor-not-allowed' : ''}`} />
                 {remainingDays !== null && !readOnly && (
@@ -148,7 +148,7 @@ export default function TaskModal({ task, allTasks = [], columns = [], onClose, 
 
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5 flex items-center gap-1.5">
-                  Responsable {!canEditPlanning && !readOnly && <Lock size={10} className="text-gray-500" title="Solo PM" />}
+                  Responsable {!canEditPlanning && !readOnly && <span title="Solo PM" className="text-gray-500"><Lock size={10} /></span>}
                 </label>
                 <select name="assigneeId" value={formData.assigneeId} onChange={handleChange} disabled={readOnly || !canEditPlanning} className={`${inputClass} ${!canEditPlanning ? 'opacity-70 cursor-not-allowed' : ''}`}><option value="">Sin asignar</option>{members?.map((m: any) => <option key={m.userId} value={m.userId}>{m.user.name}</option>)}</select>
               </div>
@@ -161,7 +161,7 @@ export default function TaskModal({ task, allTasks = [], columns = [], onClose, 
                     <div className={`dot absolute left-1 top-1 w-4 h-4 rounded-full transition-transform ${formData.isBlocked ? 'transform translate-x-4 bg-white' : 'bg-gray-400'}`}></div>
                   </div>
                   <span className={`text-sm font-bold flex items-center gap-1.5 ${formData.isBlocked ? 'text-red-400' : 'text-gray-400'}`}>
-                    <AlertCircle size={16} /> Bloqueado {!canBlock && !readOnly && <Lock size={10} className="text-gray-500" title="Solo Tester" />}
+                    <AlertCircle size={16} /> Bloqueado {!canBlock && !readOnly && <span title="Solo Tester" className="text-gray-500"><Lock size={10} /></span>}
                   </span>
                 </label>
               </div>
@@ -264,7 +264,7 @@ export default function TaskModal({ task, allTasks = [], columns = [], onClose, 
 
               <div>
                 <label className="block text-xs font-bold text-emerald-500/70 uppercase mb-2 flex items-center gap-1.5">
-                  <CheckSquare size={14}/> Criterios de Aceptación {!canEditCriteria && !readOnly && <Lock size={10} className="text-emerald-500/50" title="Solo PO" />}
+                  <CheckSquare size={14}/> Criterios de Aceptación {!canEditCriteria && !readOnly && <span title="Solo PO" className="text-emerald-500/50"><Lock size={10} /></span>}
                 </label>
                 <textarea name="acceptanceCriteria" value={formData.acceptanceCriteria} onChange={handleChange} disabled={readOnly || !canEditCriteria} placeholder="1. El sistema debe permitir..." className={`${inputClass} h-24 custom-scrollbar resize-none ${readOnly || !canEditCriteria ? 'opacity-70' : '!bg-[#1a2024] !border-emerald-900/30 !text-emerald-100/90 focus:!border-emerald-500'}`} />
               </div>
