@@ -58,6 +58,8 @@ export async function POST(request: Request) {
         ]);
         return NextResponse.json({ success: true });
 
+      }
+
       case "change_role":
         if (targetUserId === currentUser.id) return new NextResponse("No puedes cambiar tu propio rol", { status: 400 });
         await prisma.member.update({
