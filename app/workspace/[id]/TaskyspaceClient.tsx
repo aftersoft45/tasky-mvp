@@ -185,12 +185,9 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
       .filter((t: any) => t.assigneeId === m.userId)
       .reduce((sum: number, t: any) => sum + (Number(t.effortHours) || 0), 0);
       
-    const completadas = viewedSprintTasks.reduce((sum: number, t: any) => {
-      const userLogs = (t.workLogs || [])
-        .filter((log: any) => log.userId === m.userId)
-        .reduce((acc: number, curr: any) => acc + curr.hours, 0);
-      return sum + userLogs;
-    }, 0);
+    const completadas = viewedSprintTasks
+      .filter((t: any) => t.assigneeId === m.userId && t.columnId === doneColumn?.id)
+      .reduce((sum: number, t: any) => sum + (Number(t.effortHours) || 0), 0);
 
     return {
       nombre: m.user.name.split(' ')[0], 
@@ -332,6 +329,10 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
 
   const handleDeleteSprint = async (sprintId: string) => {
     if (!canManageSprints) return alert("Solo PM o Admin pueden borrar sprints.");
+    const sprintObj = sprints.find((s: any) => s.id === sprintId);
+    if (sprintObj && sprintObj.status !== 'PLANNED') {
+      return alert("❌ No se puede eliminar un sprint que esté en proceso de realización o finalizado.");
+    }
     if (!confirm(" ¿Eliminar este Sprint? Las tareas regresarán al Backlog.")) return;
     setSprints(sprints.filter((s:any) => s.id !== sprintId));
     setColumns((prev: any) => prev.map((col: any) => ({ ...col, tasks: col.tasks.map((t: any) => t.sprintId === sprintId ? { ...t, sprintId: null } : t) })));
@@ -369,6 +370,10 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     }
 
     if (source.droppableId !== destination.droppableId && destination.droppableId === doneColumn?.id) {
+      if (movedTask.isBlocked) {
+        alert("❌ Acción bloqueada: No puedes mover esta tarea a 'Listo' mientras esté marcada como bloqueada.");
+        return;
+      }
       if (!canApproveDone) {
         alert("❌ Movimiento bloqueado: Solo el Tech Lead (o Admin) puede validar y pasar tickets a la columna 'Listo'.");
         return;

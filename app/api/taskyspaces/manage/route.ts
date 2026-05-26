@@ -42,11 +42,20 @@ export async function POST(request: Request) {
         await prisma.taskyspace.delete({ where: { id: spaceId } });
         return NextResponse.json({ success: true });
 
-      case "remove_member":
-        if (targetUserId === currentUser.id) return new NextResponse("No puedes eliminarte a ti mismo", { status: 400 });
-        await prisma.member.delete({
-          where: { userId_taskyspaceId: { userId: targetUserId, taskyspaceId: spaceId } }
-        });
+      case "remove_member": {
+        if (targetUserId === currentUser.id) {
+          return NextResponse.json({ error: "No puedes eliminarte a ti mismo" }, { status: 400 });
+        }
+
+        await prisma.$transaction([
+          prisma.task.updateMany({
+            where: { taskyspaceId: spaceId, assigneeId: targetUserId },
+            data: { assigneeId: null }
+          }),
+          prisma.member.delete({
+            where: { userId_taskyspaceId: { userId: targetUserId, taskyspaceId: spaceId } }
+          })
+        ]);
         return NextResponse.json({ success: true });
 
       case "change_role":
