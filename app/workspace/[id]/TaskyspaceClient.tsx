@@ -21,7 +21,6 @@ const getRoleBadgeStyle = (roleName: string) => {
     case 'Project Manager': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
     case 'Tech Lead': return 'bg-orange-500/10 text-orange-400 border-orange-500/20';
     case 'Tester': return 'bg-pink-500/10 text-pink-400 border-pink-500/20';
-    case 'DevOps': return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20';
     case 'Developer': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
     default: return 'bg-gray-800/50 text-gray-400 border border-gray-700/50';
   }
@@ -441,7 +440,7 @@ export default function TaskyspaceClient({ space, currentUser, userRole }: Tasky
     let newColumns = JSON.parse(JSON.stringify(columns));
     
     const currentDate = new Date().toLocaleString('es-ES');
-    const rejectionNote = `\n\n🚨 [RECHAZADO POR QA - ${currentDate}]\nMotivo: ${rejectReason}`;
+    const rejectionNote = `\n\n🚨 [RECHAZADO POR TESTER - ${currentDate}]\nMotivo: ${rejectReason}`;
     
     let taskToMove: any = null;
     let sourceCol: any = null;

@@ -27,7 +27,7 @@ export default function TaskModal({ task, allTasks = [], columns = [], onClose, 
   const canEditCriteria = isAdmin || currentUserRole === 'Product Owner';
   const canEditPlanning = isAdmin || currentUserRole === 'Project Manager';
   const canBlock = isAdmin || currentUserRole === 'Tester';
-  const canAddSubtasks = isAdmin || currentUserRole === 'Tech Lead' || currentUserRole === 'Developer' || currentUserRole === 'DevOps';
+  const canAddSubtasks = isAdmin || currentUserRole === 'Tech Lead' || currentUserRole === 'Developer';
   
   const canAssignSubtasks = currentUserRole !== 'Solo Visor';
 
@@ -88,7 +88,7 @@ export default function TaskModal({ task, allTasks = [], columns = [], onClose, 
         {hasRejectionAlert && (
           <div className="mx-6 mt-6 p-4 bg-red-950/40 border border-red-500/50 rounded-xl animate-in fade-in slide-in-from-top-2">
             <h4 className="text-red-400 font-bold flex items-center gap-2 mb-1">
-              <AlertCircle size={18} /> ¡ATENCIÓN! TICKET RECHAZADO POR QA
+              <AlertCircle size={18} /> ¡ATENCIÓN! TICKET RECHAZADO POR TESTER
             </h4>
             <p className="text-sm text-red-300/80 ml-6">
               El equipo de calidad ha devuelto esta tarea. Revisa la sección inferior de <b>Notas</b> para leer el motivo exacto y corrige el problema antes de volver a pasar la tarjeta a Listo.

@@ -31,7 +31,6 @@ const getRoleBadgeStyle = (roleName: string) => {
     case 'Project Manager': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
     case 'Tech Lead': return 'bg-orange-500/10 text-orange-400 border-orange-500/20';
     case 'Tester': return 'bg-pink-500/10 text-pink-400 border-pink-500/20';
-    case 'DevOps': return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20';
     default: return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'; // Developer
   }
 };
@@ -334,7 +333,7 @@ export default function CreateTaskyspaceWizard({ onClose, user }: CreateTaskyspa
             value={newStatusName}
             onChange={(e) => setNewStatusName(e.target.value)}
             onKeyDown={(e) => { if(e.key === 'Enter') addStatus(); }}
-            placeholder="Añade una nueva columna (Ej. Pruebas (QA), Validado)" 
+            placeholder="Añade una nueva columna (Ej. Pruebas (Tester), Validado)" 
             className="flex-1 bg-[#161a1d] border border-[#30363d] rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 transition-all shadow-inner"
           />
           <button onClick={addStatus} className="flex items-center gap-1.5 bg-[#2c333b] hover:bg-[#3d444d] text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors border border-[#30363d]">
@@ -406,7 +405,6 @@ export default function CreateTaskyspaceWizard({ onClose, user }: CreateTaskyspa
               <option value="Product Owner">Product Owner</option>
               <option value="Tech Lead">Tech Lead</option>
               <option value="Tester">Tester</option>
-              <option value="DevOps">DevOps</option>
               <option value="Administrador">Administrador</option>
             </select>
 

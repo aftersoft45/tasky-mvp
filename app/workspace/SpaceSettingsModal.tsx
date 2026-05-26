@@ -130,7 +130,6 @@ export default function SpaceSettingsModal({ spaceId, spaceName, onClose }: Prop
                     <option value="Product Owner">Product Owner</option>
                     <option value="Tech Lead">Tech Lead</option>
                     <option value="Tester">Tester</option>
-                    <option value="DevOps">DevOps</option>
                     <option value="Administrador">Administrador</option>
                   </select>
                   <button 
@@ -174,7 +173,6 @@ export default function SpaceSettingsModal({ spaceId, spaceName, onClose }: Prop
                           <option value="Product Owner">Product Owner</option>
                           <option value="Tech Lead">Tech Lead</option>
                           <option value="Tester">Tester</option>
-                          <option value="DevOps">DevOps</option>
                           <option value="Administrador">Administrador</option>
                         </select>
                         {/* Botón de expulsar usuario no se puede eliminar el mismo */}
