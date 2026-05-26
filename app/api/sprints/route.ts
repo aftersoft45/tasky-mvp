@@ -36,6 +36,34 @@ export async function PATCH(request: Request) {
 
     if (!sprintId) return new NextResponse("Falta ID", { status: 400 });
 
+    const targetSprint = await prisma.sprint.findUnique({
+      where: { id: sprintId }
+    });
+    if (!targetSprint) return new NextResponse("Sprint no encontrado", { status: 404 });
+
+    const newStart = startDate ? new Date(startDate) : (targetSprint.startDate ? new Date(targetSprint.startDate) : null);
+    const newEnd = endDate ? new Date(endDate) : (targetSprint.endDate ? new Date(targetSprint.endDate) : null);
+
+    if (newStart && newEnd) {
+      if (newEnd <= newStart) {
+        return new NextResponse("La fecha de fin debe ser posterior a la de inicio", { status: 400 });
+      }
+
+      // Check overlaps in the same workspace
+      const overlappingSprint = await prisma.sprint.findFirst({
+        where: {
+          taskyspaceId: targetSprint.taskyspaceId,
+          id: { not: sprintId },
+          startDate: { lte: newEnd },
+          endDate: { gte: newStart }
+        }
+      });
+
+      if (overlappingSprint) {
+        return new NextResponse("Las fechas del sprint se solapan con otro sprint existente", { status: 400 });
+      }
+    }
+
     const updateData: any = {};
     if (status) updateData.status = status;
     if (startDate) updateData.startDate = new Date(startDate);
@@ -62,6 +90,18 @@ export async function DELETE(request: Request) {
     const sprintId = searchParams.get("sprintId");
 
     if (!sprintId) return new NextResponse("Falta ID", { status: 400 });
+
+    const sprint = await prisma.sprint.findUnique({
+      where: { id: sprintId }
+    });
+
+    if (!sprint) {
+      return new NextResponse("Sprint no encontrado", { status: 404 });
+    }
+
+    if (sprint.status !== "PLANNED") {
+      return new NextResponse("No se puede eliminar un sprint que esté en proceso de realización o finalizado", { status: 400 });
+    }
 
     await prisma.sprint.delete({
       where: { id: sprintId }
