@@ -1,0 +1,23 @@
+# Dependencias (El contenedor instalará las suyas propias para Linux)
+node_modules
+npm-debug.log
+
+# Caché de Next.js (Evita el choque de Turbopack)
+.next
+out
+build
+.vercel
+
+# Archivos de entorno (Se pasan por docker-compose)
+.env*
+!.env.example
+
+# Git y configuración local
+.git
+.gitignore
+README.md
+
+# Archivos de Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
